@@ -133,7 +133,7 @@ yawn delete feature-x
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `open_command` | string | unset | Command template to open a terminal session. Placeholders: `{dir}` (absolute path), `{name}` (directory basename). When unset, uses `$TERMINAL` or falls back to `xterm`. |
+| `open_command` | string | unset | Command template to open a terminal session. Placeholders: `{dir}` (absolute path), `{name}` (directory basename). When unset, uses `$TERMINAL`, or falls back to `Terminal.app` on macOS and `xterm` on Linux. |
 
 ### `[worktree]`
 
