@@ -49,13 +49,23 @@ pub fn fetch(dir: &Path) -> Result<()> {
 
 /// Check if a local branch exists.
 pub fn local_branch_exists(dir: &Path, name: &str) -> Result<bool> {
-    let result = git(dir, &["show-ref", "--verify", &format!("refs/heads/{}", name)]);
+    let result = git(
+        dir,
+        &["show-ref", "--verify", &format!("refs/heads/{}", name)],
+    );
     Ok(result.is_ok())
 }
 
 /// Check if a remote tracking branch exists (origin/<name>).
 pub fn remote_branch_exists(dir: &Path, name: &str) -> Result<bool> {
-    let result = git(dir, &["show-ref", "--verify", &format!("refs/remotes/origin/{}", name)]);
+    let result = git(
+        dir,
+        &[
+            "show-ref",
+            "--verify",
+            &format!("refs/remotes/origin/{}", name),
+        ],
+    );
     Ok(result.is_ok())
 }
 
@@ -83,15 +93,7 @@ pub fn default_branch(dir: &Path) -> Result<String> {
 
 /// Add a worktree.
 pub fn worktree_add(dir: &Path, target: &Path, branch: &str) -> Result<()> {
-    git(
-        dir,
-        &[
-            "worktree",
-            "add",
-            &target.to_string_lossy(),
-            branch,
-        ],
-    )?;
+    git(dir, &["worktree", "add", &target.to_string_lossy(), branch])?;
     Ok(())
 }
 
@@ -118,10 +120,7 @@ pub fn worktree_add_new_branch(
 
 /// Remove a worktree.
 pub fn worktree_remove(dir: &Path, target: &Path) -> Result<()> {
-    git(
-        dir,
-        &["worktree", "remove", &target.to_string_lossy()],
-    )?;
+    git(dir, &["worktree", "remove", &target.to_string_lossy()])?;
     Ok(())
 }
 
@@ -171,7 +170,17 @@ mod tests {
         init_repo(&repo);
 
         let wt_path = tmp.path().join("myrepo--feature");
-        git(&repo, &["worktree", "add", "-b", "feature", &wt_path.to_string_lossy()]).unwrap();
+        git(
+            &repo,
+            &[
+                "worktree",
+                "add",
+                "-b",
+                "feature",
+                &wt_path.to_string_lossy(),
+            ],
+        )
+        .unwrap();
 
         let root = repo_root(&wt_path).unwrap();
         assert_eq!(root.canonicalize().unwrap(), repo.canonicalize().unwrap());
@@ -224,7 +233,9 @@ mod tests {
         assert!(worktrees.len() >= 2); // main + the new worktree
         let wt_canonical = wt_path.canonicalize().unwrap();
         assert!(
-            worktrees.iter().any(|p| p.canonicalize().unwrap_or_default() == wt_canonical),
+            worktrees
+                .iter()
+                .any(|p| p.canonicalize().unwrap_or_default() == wt_canonical),
             "worktree list should contain the new worktree"
         );
     }

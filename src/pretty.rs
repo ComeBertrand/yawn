@@ -22,10 +22,7 @@ pub fn is_worktree(path: &Path) -> bool {
 pub fn worktree_main_repo_name(path: &Path) -> Result<String> {
     let git_file = path.join(".git");
     let content = fs::read_to_string(&git_file)?;
-    let gitdir = content
-        .strip_prefix("gitdir: ")
-        .unwrap_or(&content)
-        .trim();
+    let gitdir = content.strip_prefix("gitdir: ").unwrap_or(&content).trim();
     // gitdir is like: /path/to/main-repo/.git/worktrees/<name>
     // We want the main-repo basename.
     let gitdir_path = PathBuf::from(gitdir);
@@ -38,7 +35,10 @@ pub fn worktree_main_repo_name(path: &Path) -> Result<String> {
         .map(|n| n.to_string_lossy().to_string());
     match main_git_dir {
         Some(name) => Ok(name),
-        None => bail!("could not determine main repo from worktree at {}", path.display()),
+        None => bail!(
+            "could not determine main repo from worktree at {}",
+            path.display()
+        ),
     }
 }
 
@@ -99,13 +99,14 @@ pub fn build_pretty_names(paths: &[PathBuf]) -> Vec<PrettyEntry> {
         .collect();
 
     // Disambiguate collisions
-    for (_name, indices) in &name_counts {
+    for indices in name_counts.values() {
         if indices.len() <= 1 {
             continue;
         }
 
         // Find the shortest unique parent path suffix for each colliding entry
-        let paths_for_collision: Vec<&Path> = indices.iter().map(|&i| entries[i].0.as_path()).collect();
+        let paths_for_collision: Vec<&Path> =
+            indices.iter().map(|&i| entries[i].0.as_path()).collect();
         let suffixes = shortest_unique_suffixes(&paths_for_collision);
 
         for (j, &idx) in indices.iter().enumerate() {
@@ -190,7 +191,11 @@ pub fn resolve(pretty_name: &str, paths: &[PathBuf]) -> Result<PathBuf> {
     match matches.len() {
         0 => bail!("no project matches '{}'", pretty_name),
         1 => Ok(matches[0].path.clone()),
-        _ => bail!("ambiguous name '{}' matches {} projects", pretty_name, matches.len()),
+        _ => bail!(
+            "ambiguous name '{}' matches {} projects",
+            pretty_name,
+            matches.len()
+        ),
     }
 }
 
@@ -213,11 +218,7 @@ mod tests {
             .join("worktrees")
             .join(worktree_name.as_ref());
         fs::create_dir_all(&gitdir).unwrap();
-        fs::write(
-            path.join(".git"),
-            format!("gitdir: {}", gitdir.display()),
-        )
-        .unwrap();
+        fs::write(path.join(".git"), format!("gitdir: {}", gitdir.display())).unwrap();
     }
 
     #[test]
@@ -319,14 +320,12 @@ mod tests {
 
         // "projects" alone isn't unique, so should include "a/projects" and "b/projects"
         assert!(
-            entries[0].display_name.contains("a/projects")
-                || entries[0].display_name.contains("a"),
+            entries[0].display_name.contains("a/projects") || entries[0].display_name.contains("a"),
             "expected 'a' disambiguation, got: {}",
             entries[0].display_name
         );
         assert!(
-            entries[1].display_name.contains("b/projects")
-                || entries[1].display_name.contains("b"),
+            entries[1].display_name.contains("b/projects") || entries[1].display_name.contains("b"),
             "expected 'b' disambiguation, got: {}",
             entries[1].display_name
         );

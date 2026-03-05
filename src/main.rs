@@ -13,7 +13,14 @@ use std::path::PathBuf;
 
 use cli::{Cli, Command};
 
-fn main() -> Result<()> {
+fn main() {
+    if let Err(e) = run() {
+        eprintln!("error: {e}");
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<()> {
     let cli = Cli::parse();
     let config = config::load_config()?;
 
@@ -21,7 +28,9 @@ fn main() -> Result<()> {
         Command::List { path, pretty } => cmd_list(path, pretty, &config),
         Command::Resolve { name } => cmd_resolve(&name, &config),
         Command::Open { path } => cmd_open(&path, &config),
-        Command::Create { name, source, open } => cmd_create(&name, source.as_deref(), open, &config),
+        Command::Create { name, source, open } => {
+            cmd_create(&name, source.as_deref(), open, &config)
+        }
         Command::Delete { name } => cmd_delete(&name, &config),
         Command::Complete { subcommand } => cmd_complete(&subcommand),
     }
@@ -55,7 +64,7 @@ fn cmd_resolve(name: &str, config: &config::Config) -> Result<()> {
     Ok(())
 }
 
-fn cmd_open(path: &PathBuf, config: &config::Config) -> Result<()> {
+fn cmd_open(path: &std::path::Path, config: &config::Config) -> Result<()> {
     if !path.is_absolute() {
         bail!("path must be absolute: {}", path.display());
     }

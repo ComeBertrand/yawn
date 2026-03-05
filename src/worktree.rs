@@ -24,10 +24,7 @@ fn expand_pattern(base: &Path, pattern: &str) -> Vec<PathBuf> {
             Ok(g) => g.compile_matcher(),
             Err(_) => return Vec::new(),
         };
-        match collect_files(base, base, &glob) {
-            Ok(files) => files,
-            Err(_) => Vec::new(),
-        }
+        collect_files(base, base, &glob).unwrap_or_default()
     } else {
         let path = base.join(pattern);
         if path.exists() {
@@ -39,11 +36,7 @@ fn expand_pattern(base: &Path, pattern: &str) -> Vec<PathBuf> {
 }
 
 /// Recursively collect files under `dir` that match `glob`, returning paths relative to `base`.
-fn collect_files(
-    base: &Path,
-    dir: &Path,
-    glob: &globset::GlobMatcher,
-) -> Result<Vec<PathBuf>> {
+fn collect_files(base: &Path, dir: &Path, glob: &globset::GlobMatcher) -> Result<Vec<PathBuf>> {
     let mut results = Vec::new();
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,
@@ -104,10 +97,7 @@ pub fn create(name: &str, source: Option<&str>, config: &Config, cwd: &Path) -> 
         .join(format!("{}--{}", project_name, name));
 
     if target.exists() {
-        bail!(
-            "worktree directory already exists: {}",
-            target.display()
-        );
+        bail!("worktree directory already exists: {}", target.display());
     }
 
     git::fetch(cwd)?;
@@ -146,7 +136,7 @@ pub fn delete(name: &str, config: &Config, cwd: &Path) -> Result<()> {
         .join(format!("{}--{}", project_name, name));
 
     // Try git worktree remove first
-    if let Err(_) = git::worktree_remove(cwd, &target) {
+    if git::worktree_remove(cwd, &target).is_err() {
         // If git worktree remove failed but directory exists, remove it manually
         if target.exists() {
             fs::remove_dir_all(&target)
@@ -266,7 +256,10 @@ mod tests {
 
         copy_devwork_files(&main_repo, &worktree).unwrap();
 
-        assert_eq!(fs::read_to_string(worktree.join(".env")).unwrap(), "SECRET=123");
+        assert_eq!(
+            fs::read_to_string(worktree.join(".env")).unwrap(),
+            "SECRET=123"
+        );
         assert_eq!(
             fs::read_to_string(worktree.join("config/local.toml")).unwrap(),
             "[db]\nhost=localhost"
@@ -424,9 +417,7 @@ mod tests {
 
         let result = create("feature-x", None, &config, &repo);
         assert!(result.is_err());
-        assert!(
-            result.unwrap_err().to_string().contains("already exists"),
-        );
+        assert!(result.unwrap_err().to_string().contains("already exists"),);
     }
 
     #[test]

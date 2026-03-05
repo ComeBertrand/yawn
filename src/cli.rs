@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(name = "yawn", about = "Yet Another Worktree Navigator")]
+#[command(name = "yawn", about = "Yet Another Worktree Navigator", version)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
@@ -168,9 +168,7 @@ mod tests {
 
     #[test]
     fn test_create_all_flags() {
-        let cli = parse(&[
-            "yawn", "create", "feature-x", "--source", "main", "--open",
-        ]);
+        let cli = parse(&["yawn", "create", "feature-x", "--source", "main", "--open"]);
         match cli.command {
             Command::Create { name, source, open } => {
                 assert_eq!(name, "feature-x");
@@ -202,7 +200,12 @@ mod tests {
     #[test]
     fn test_complete_hidden_from_help() {
         // "complete" should not appear in help text
-        let help = Cli::try_parse_from(&["yawn", "--help"]).unwrap_err().to_string();
-        assert!(!help.contains("complete"), "complete should be hidden from help");
+        let help = Cli::try_parse_from(&["yawn", "--help"])
+            .unwrap_err()
+            .to_string();
+        assert!(
+            !help.contains("complete"),
+            "complete should be hidden from help"
+        );
     }
 }

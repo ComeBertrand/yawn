@@ -98,11 +98,7 @@ mod tests {
     fn make_git_worktree(path: &Path, main_repo: &Path) {
         fs::create_dir_all(path).unwrap();
         let gitdir = main_repo.join(".git").join("worktrees").join("dummy");
-        fs::write(
-            path.join(".git"),
-            format!("gitdir: {}", gitdir.display()),
-        )
-        .unwrap();
+        fs::write(path.join(".git"), format!("gitdir: {}", gitdir.display())).unwrap();
     }
 
     #[test]
@@ -126,7 +122,10 @@ mod tests {
         let results = discover(tmp.path(), &default_ignore(), 5).unwrap();
         assert_eq!(results.len(), 3);
         // Results should be sorted
-        let names: Vec<_> = results.iter().map(|p| p.file_name().unwrap().to_string_lossy().to_string()).collect();
+        let names: Vec<_> = results
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
+            .collect();
         assert_eq!(names, vec!["alpha", "beta", "gamma"]);
     }
 
@@ -168,7 +167,11 @@ mod tests {
     #[test]
     fn test_discover_ignores_node_modules() {
         let tmp = TempDir::new().unwrap();
-        let nm = tmp.path().join("project").join("node_modules").join("some-pkg");
+        let nm = tmp
+            .path()
+            .join("project")
+            .join("node_modules")
+            .join("some-pkg");
         make_git_repo(&nm);
         make_git_repo(&tmp.path().join("project")); // But wait, project has .git so it's a leaf
 
@@ -237,7 +240,12 @@ mod tests {
         make_git_repo(&tmp.path().join("target").join("some-pkg"));
         make_git_repo(&tmp.path().join("real-project"));
 
-        let ignore = build_ignore_set(&[".*".to_string(), "node_modules".to_string(), "target".to_string()]).unwrap();
+        let ignore = build_ignore_set(&[
+            ".*".to_string(),
+            "node_modules".to_string(),
+            "target".to_string(),
+        ])
+        .unwrap();
         let results = discover(tmp.path(), &ignore, 5).unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].file_name().unwrap(), "real-project");

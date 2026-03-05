@@ -1,5 +1,9 @@
 # yawn — Yet Another Worktree Navigator
 
+[![CI](https://github.com/ComeBertrand/yawn/actions/workflows/ci.yml/badge.svg)](https://github.com/ComeBertrand/yawn/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/git-yawn.svg)](https://crates.io/crates/git-yawn)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A CLI tool for managing git worktrees and discovering projects.
 
 ## Install
@@ -90,7 +94,15 @@ Branch resolution when creating a worktree follows this order:
 3. If `--source <base>` is provided, create a new branch from `<base>`.
 4. Otherwise, create a new branch from the default branch (`origin/HEAD`, falling back to `main` then `master`).
 
-If a `.yawninclude` file exists in the main repo root, the files it lists (one path per line) are copied into the new worktree. This is useful for local config files like `.env` that aren't tracked by git.
+If a `.yawninclude` file exists in the main repo root, the files it lists are copied into the new worktree. This is useful for local config files like `.env` that aren't tracked by git. Glob patterns are supported.
+
+```
+# .yawninclude
+.env
+.env.local
+config/*.toml
+data_*.csv
+```
 
 ```bash
 # Create a worktree (new branch from default branch)

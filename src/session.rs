@@ -17,18 +17,13 @@ pub fn open(dir: &Path, open_command: Option<&str>) -> Result<()> {
 
     if let Some(template) = open_command {
         let cmd = build_command(template, &dir_str, &name);
-        let status = Command::new("sh")
-            .arg("-c")
-            .arg(&cmd)
-            .status()?;
+        let status = Command::new("sh").arg("-c").arg(&cmd).status()?;
         if !status.success() {
             bail!("open command failed: {}", cmd);
         }
     } else {
         let terminal = std::env::var("TERMINAL").unwrap_or_else(|_| "xterm".to_string());
-        Command::new(&terminal)
-            .current_dir(dir)
-            .spawn()?;
+        Command::new(&terminal).current_dir(dir).spawn()?;
     }
 
     Ok(())
