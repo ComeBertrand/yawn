@@ -1,9 +1,13 @@
 [package]
-name = "yawn"
-version = "0.1.0"
+name = "git-yawn"
+version = "0.1.1"
 edition = "2021"
 description = "Yet Another Worktree Navigator"
 license = "MIT"
+
+[[bin]]
+name = "yawn"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"

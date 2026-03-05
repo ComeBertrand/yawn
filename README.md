@@ -7,7 +7,7 @@ A CLI tool for managing git worktrees and discovering projects.
 ### From source
 
 ```bash
-cargo install yawn
+cargo install git-yawn
 ```
 
 ### Nix flake
