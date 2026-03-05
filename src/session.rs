@@ -33,7 +33,11 @@ pub fn open(dir: &Path, open_command: Option<&str>) -> Result<()> {
 /// Platform-specific fallback to open a terminal in a directory.
 #[cfg(target_os = "macos")]
 fn default_open(dir: &Path) -> Result<()> {
-    let status = Command::new("open").arg("-a").arg("Terminal").arg(dir).status()?;
+    let status = Command::new("open")
+        .arg("-a")
+        .arg("Terminal")
+        .arg(dir)
+        .status()?;
     if !status.success() {
         bail!("failed to open Terminal.app");
     }
