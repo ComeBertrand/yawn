@@ -2,7 +2,7 @@
 name = "git-yawn"
 version = "0.1.2"
 edition = "2021"
-rust-version = "1.77.0"
+rust-version = "1.85.0"
 description = "Yet Another Worktree Navigator"
 license = "MIT"
 repository = "https://github.com/ComeBertrand/yawn"
