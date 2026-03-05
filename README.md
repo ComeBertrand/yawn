@@ -90,7 +90,7 @@ Branch resolution when creating a worktree follows this order:
 3. If `--source <base>` is provided, create a new branch from `<base>`.
 4. Otherwise, create a new branch from the default branch (`origin/HEAD`, falling back to `main` then `master`).
 
-If a `.devwork` file exists in the main repo root, the files it lists (one path per line) are copied into the new worktree. This is useful for local config files like `.env` that aren't tracked by git.
+If a `.yawninclude` file exists in the main repo root, the files it lists (one path per line) are copied into the new worktree. This is useful for local config files like `.env` that aren't tracked by git.
 
 ```bash
 # Create a worktree (new branch from default branch)
