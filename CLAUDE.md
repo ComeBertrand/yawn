@@ -6,7 +6,7 @@ Rust CLI tool for managing git worktrees and discovering projects. Crate name is
 
 ## Toolchain
 
-Rust is not in PATH. Use `nix-shell` to access it:
+Try `cargo` directly first. If it's not in PATH, fall back to nix-shell:
 
 ```bash
 nix-shell -p cargo rustc git clippy rustfmt --run "<command>"
@@ -17,9 +17,9 @@ nix-shell -p cargo rustc git clippy rustfmt --run "<command>"
 Always run these in order:
 
 ```bash
-nix-shell -p cargo rustc git clippy rustfmt --run "cargo fmt"
-nix-shell -p cargo rustc git clippy rustfmt --run "cargo clippy -- -D warnings"
-nix-shell -p cargo rustc git clippy rustfmt --run "cargo test"
+cargo fmt
+cargo clippy -- -D warnings
+cargo test
 ```
 
 ## Releasing a new version
@@ -33,4 +33,4 @@ Forgetting to commit the updated `Cargo.lock` will cause the crates.io publish t
 
 ## GitHub CLI
 
-`gh` is installed and authenticated. Use it directly (no nix-shell needed).
+`gh` is installed and authenticated. Use it directly.
