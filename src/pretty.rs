@@ -8,7 +8,12 @@ use std::path::{Path, PathBuf};
 pub struct PrettyEntry {
     pub path: PathBuf,
     pub display_name: String,
+        sort_key: SortKey,
 }
+
+/// Sort key for pretty entries: (group_name, is_worktree, short_name).
+/// Worktrees group under their main repo name and appear after it.
+type SortKey = (String, u8, String);
 
 /// Detect whether a path is a git worktree (`.git` is a file, not a directory).
 pub fn is_worktree(path: &Path) -> bool {
@@ -50,7 +55,7 @@ pub fn worktree_main_repo_name(path: &Path) -> Result<String> {
 /// 3. Disambiguate collisions with shortest unique parent path suffix.
 pub fn build_pretty_names(paths: &[PathBuf]) -> Vec<PrettyEntry> {
     // Step 1: compute base names
-    let mut entries: Vec<(PathBuf, String, Option<String>)> = Vec::new(); // (path, base_name, worktree_annotation)
+    let mut entries: Vec<(PathBuf, String, Option<String>, SortKey)> = Vec::new();
 
     for path in paths {
         let basename = path
@@ -66,27 +71,30 @@ pub fn build_pretty_names(paths: &[PathBuf]) -> Vec<PrettyEntry> {
                 } else {
                     basename.clone()
                 };
+                let sort_key = (main_name.to_lowercase(), 1, short_name.to_lowercase());
                 entries.push((
                     path.clone(),
                     short_name,
                     Some(format!("[worktree of {}]", main_name)),
+                    sort_key,
                 ));
                 continue;
             }
         }
 
-        entries.push((path.clone(), basename, None));
+        let sort_key = (basename.to_lowercase(), 0, String::new());
+        entries.push((path.clone(), basename, None, sort_key));
     }
 
     // Step 2: find collisions on base name and disambiguate
     let mut name_counts: HashMap<String, Vec<usize>> = HashMap::new();
-    for (i, (_, name, _)) in entries.iter().enumerate() {
+    for (i, (_, name, _, _)) in entries.iter().enumerate() {
         name_counts.entry(name.clone()).or_default().push(i);
     }
 
     let mut result: Vec<PrettyEntry> = entries
         .iter()
-        .map(|(path, name, annotation)| {
+        .map(|(path, name, annotation, sort_key)| {
             let display = match annotation {
                 Some(ann) => format!("{} {}", name, ann),
                 None => name.clone(),
@@ -94,6 +102,7 @@ pub fn build_pretty_names(paths: &[PathBuf]) -> Vec<PrettyEntry> {
             PrettyEntry {
                 path: path.clone(),
                 display_name: display,
+                sort_key: sort_key.clone(),
             }
         })
         .collect();
@@ -110,7 +119,7 @@ pub fn build_pretty_names(paths: &[PathBuf]) -> Vec<PrettyEntry> {
         let suffixes = shortest_unique_suffixes(&paths_for_collision);
 
         for (j, &idx) in indices.iter().enumerate() {
-            let (_, ref base_name, ref annotation) = entries[idx];
+            let (_, ref base_name, ref annotation, _) = entries[idx];
             let display = match annotation {
                 Some(ann) => format!("{} ({}) {}", base_name, suffixes[j], ann),
                 None => format!("{} ({})", base_name, suffixes[j]),
@@ -118,6 +127,9 @@ pub fn build_pretty_names(paths: &[PathBuf]) -> Vec<PrettyEntry> {
             result[idx].display_name = display;
         }
     }
+
+    // Sort: alphabetical, with worktrees grouped after their main repo
+    result.sort_by(|a, b| a.sort_key.cmp(&b.sort_key));
 
     result
 }
@@ -452,6 +464,56 @@ mod tests {
         // "shared" is the same for both, so need "a/shared" and "b/shared"
         assert_eq!(suffixes[0], "a/shared");
         assert_eq!(suffixes[1], "b/shared");
+    }
+
+    #[test]
+    fn test_sorted_worktrees_after_main_repo() {
+        let tmp = TempDir::new().unwrap();
+
+        let zebra = tmp.path().join("zebra");
+        make_git_repo(&zebra);
+
+        let alpha = tmp.path().join("alpha");
+        make_git_repo(&alpha);
+
+        let myapp = tmp.path().join("myapp");
+        make_git_repo(&myapp);
+
+        let wt_feature = tmp.path().join("myapp--feature");
+        make_git_worktree(&wt_feature, &myapp);
+
+        let wt_bugfix = tmp.path().join("myapp--bugfix");
+        make_git_worktree(&wt_bugfix, &myapp);
+
+        // Pass in unsorted order
+        let paths = vec![zebra, wt_feature, alpha, wt_bugfix, myapp];
+        let entries = build_pretty_names(&paths);
+        let names: Vec<&str> = entries.iter().map(|e| e.display_name.as_str()).collect();
+
+        assert_eq!(
+            names,
+            vec![
+                "alpha",
+                "myapp",
+                "bugfix [worktree of myapp]",
+                "feature [worktree of myapp]",
+                "zebra",
+            ]
+        );
+    }
+
+    #[test]
+    fn test_sorted_case_insensitive() {
+        let tmp = TempDir::new().unwrap();
+        let upper = tmp.path().join("Zebra");
+        let lower = tmp.path().join("alpha");
+        make_git_repo(&upper);
+        make_git_repo(&lower);
+
+        let paths = vec![upper, lower];
+        let entries = build_pretty_names(&paths);
+        let names: Vec<&str> = entries.iter().map(|e| e.display_name.as_str()).collect();
+        assert_eq!(names, vec!["alpha", "Zebra"]);
     }
 
     #[test]
