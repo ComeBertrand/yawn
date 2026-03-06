@@ -70,7 +70,6 @@ yawn list
 ```
 
 ```
-/home/user/projects/my-app
 /home/user/worktrees/my-app--fix-branch
 /home/user/worktrees/my-app--feature-x
 ```
