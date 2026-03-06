@@ -44,13 +44,12 @@ yawn delete <name>              Remove a worktree
 
 ### Listing projects
 
-`yawn list` behaves differently depending on context:
-
-**With a path** (or outside a git repo): recursively discovers git projects under the given directory.
+Recursively discovers git projects under a directory. Takes an optional path, defaults to the current directory.
 
 ```bash
-yawn list ~/projects
-yawn list ~/projects -p   # human-readable with worktree annotations
+yawn list ~/projects       # discover projects under ~/projects
+yawn list                  # discover projects under cwd
+yawn list ~/projects -p    # human-readable with worktree annotations
 ```
 
 Pretty output example:
@@ -63,7 +62,7 @@ notes (personal)
 notes (work)
 ```
 
-**Without a path, inside a git repo**: lists the worktrees of the current project.
+If run inside a git repo (without a path), it lists the worktrees of that repo instead:
 
 ```bash
 cd ~/projects/my-app
