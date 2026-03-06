@@ -48,7 +48,7 @@ yawn delete <name>              Remove a worktree
 yawn list ~/projects
 
 # Human-readable output with worktree annotations
-yawn list ~/projects --pretty
+yawn list ~/projects -p
 ```
 
 Pretty output example:
@@ -59,6 +59,21 @@ fix-branch [worktree of my-app]
 dotfiles
 notes (personal)
 notes (work)
+```
+
+### List worktrees
+
+When run inside a git repo without a path, `yawn list` shows the worktrees of the current project:
+
+```bash
+cd ~/projects/my-app
+yawn list
+```
+
+```
+/home/user/projects/my-app
+/home/user/worktrees/my-app--fix-branch
+/home/user/worktrees/my-app--feature-x
 ```
 
 ### Interactive project switcher

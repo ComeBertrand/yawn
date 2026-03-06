@@ -37,9 +37,21 @@ fn run() -> Result<()> {
 }
 
 fn cmd_list(path: Option<PathBuf>, pretty: bool, config: &config::Config) -> Result<()> {
-    let root = path.unwrap_or_else(|| env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
-    let ignore_set = discovery::build_ignore_set(&config.ignore)?;
-    let paths = discovery::discover(&root, &ignore_set, config.max_depth)?;
+    let paths = if let Some(root) = path {
+        // Explicit path: always discover
+        let ignore_set = discovery::build_ignore_set(&config.ignore)?;
+        discovery::discover(&root, &ignore_set, config.max_depth)?
+    } else {
+        let cwd = env::current_dir()?;
+        if git::repo_root(&cwd).is_ok() {
+            // Inside a git repo: list its worktrees
+            git::worktree_list(&cwd)?
+        } else {
+            // Not in a git repo: discover projects under cwd
+            let ignore_set = discovery::build_ignore_set(&config.ignore)?;
+            discovery::discover(&cwd, &ignore_set, config.max_depth)?
+        }
+    };
 
     if pretty {
         let entries = pretty::build_pretty_names(&paths);
