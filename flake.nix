@@ -9,7 +9,7 @@
       let pkgs = nixpkgs.legacyPackages.${system}; in {
         packages.default = pkgs.rustPlatform.buildRustPackage {
           pname = "yawn";
-          version = "0.1.3";
+          version = "0.1.4";
           src = ./.;
           cargoLock.lockFile = ./Cargo.lock;
         };

@@ -16,7 +16,7 @@ pub enum Command {
         path: Option<PathBuf>,
 
         /// Show human-readable names with annotations
-        #[arg(long)]
+        #[arg(short, long)]
         pretty: bool,
     },
 
@@ -38,11 +38,11 @@ pub enum Command {
         name: String,
 
         /// Base branch/ref to create the new branch from
-        #[arg(long)]
+        #[arg(short, long)]
         source: Option<String>,
 
         /// Open a terminal in the worktree after creation
-        #[arg(long)]
+        #[arg(short, long)]
         open: bool,
     },
 
