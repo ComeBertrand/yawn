@@ -3,6 +3,9 @@ _yawn() {
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     case "$prev" in
+        list)
+            COMPREPLY=($(compgen -d -- "$cur"))
+            ;;
         delete)
             COMPREPLY=($(compgen -W "$(yawn complete delete 2>/dev/null)" -- "$cur"))
             ;;
