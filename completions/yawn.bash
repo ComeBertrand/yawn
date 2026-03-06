@@ -12,8 +12,11 @@ _yawn() {
         open)
             COMPREPLY=($(compgen -W "$(yawn complete open 2>/dev/null)" -- "$cur"))
             ;;
+        pick)
+            COMPREPLY=($(compgen -d -- "$cur"))
+            ;;
         *)
-            COMPREPLY=($(compgen -W "list create delete open resolve" -- "$cur"))
+            COMPREPLY=($(compgen -W "list create delete open pick resolve" -- "$cur"))
             ;;
     esac
 }

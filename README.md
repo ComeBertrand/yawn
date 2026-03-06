@@ -36,6 +36,7 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/ComeBertrand/yawn/relea
 ```
 yawn list [path] [--pretty]     Discover git projects under a directory
 yawn resolve <pretty-name> [-P <path>]  Map a pretty name back to an absolute path
+yawn pick [-F <finder>] [path]  Interactively pick a project and open it
 yawn open <path>                Open a terminal in the given directory
 yawn create <name> [--source <base>] [--open]   Create a git worktree
 yawn delete <name>              Remove a worktree
@@ -78,14 +79,25 @@ yawn list
 
 ### Interactive project switcher
 
-Combine with a fuzzy finder like `rofi` or `fzf`:
+Use `yawn pick` with any fuzzy finder:
 
 ```bash
-# rofi
-yawn open "$(yawn resolve "$(yawn list ~ --pretty | rofi -dmenu -p project -i)")"
-
 # fzf
-yawn open "$(yawn resolve "$(yawn list ~ --pretty | fzf)")"
+yawn pick -F fzf ~/projects
+
+# rofi
+yawn pick -F "rofi -dmenu -p project -i" ~
+
+# from current directory
+yawn pick -F fzf
+```
+
+This discovers projects, pipes pretty names into the finder, resolves the selection, and opens a terminal — all in one command. Easy to bind in i3/sway/hyprland.
+
+The equivalent manual pipeline still works:
+
+```bash
+yawn open "$(yawn resolve -P ~ "$(yawn list ~ --pretty | fzf)")"
 ```
 
 ### Worktrees

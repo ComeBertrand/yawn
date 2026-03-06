@@ -6,6 +6,7 @@ _yawn() {
         'list:Recursively discover git projects under a directory'
         'resolve:Map a pretty name back to an absolute path'
         'open:Open a terminal in the given directory'
+        'pick:Interactively pick a project and open a terminal in it'
         'create:Create a git worktree for the current project'
         'delete:Remove a worktree for the current project'
     )
@@ -39,6 +40,14 @@ _yawn() {
                         '-h[Print help]' \
                         '--help[Print help]' \
                         ':name:'
+                    ;;
+                pick)
+                    _arguments \
+                        '-F+[Finder command]:finder:' \
+                        '--finder=[Finder command]:finder:' \
+                        '-h[Print help]' \
+                        '--help[Print help]' \
+                        '::path:_files -/'
                     ;;
                 open)
                     _arguments \

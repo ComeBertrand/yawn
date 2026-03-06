@@ -4,6 +4,7 @@ complete -c yawn -f
 # Subcommands
 complete -c yawn -n "__fish_use_subcommand" -a list -d 'Recursively discover git projects under a directory'
 complete -c yawn -n "__fish_use_subcommand" -a resolve -d 'Map a pretty name back to an absolute path'
+complete -c yawn -n "__fish_use_subcommand" -a pick -d 'Interactively pick a project and open a terminal in it'
 complete -c yawn -n "__fish_use_subcommand" -a open -d 'Open a terminal in the given directory'
 complete -c yawn -n "__fish_use_subcommand" -a create -d 'Create a git worktree for the current project'
 complete -c yawn -n "__fish_use_subcommand" -a delete -d 'Remove a worktree for the current project'
@@ -18,6 +19,10 @@ complete -c yawn -n "__fish_seen_subcommand_from list" -F
 
 # resolve
 complete -c yawn -n "__fish_seen_subcommand_from resolve" -s P -l path -d 'Directory to search' -r -F
+
+# pick
+complete -c yawn -n "__fish_seen_subcommand_from pick" -s F -l finder -d 'Finder command' -r
+complete -c yawn -n "__fish_seen_subcommand_from pick" -F
 
 # open — dynamic completions
 complete -c yawn -n "__fish_seen_subcommand_from open" -a "(yawn complete open 2>/dev/null)"

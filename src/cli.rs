@@ -50,6 +50,16 @@ pub enum Command {
         open: bool,
     },
 
+    /// Interactively pick a project and open a terminal in it
+    Pick {
+        /// Directory to search (defaults to current directory)
+        path: Option<PathBuf>,
+
+        /// Finder command to use (e.g. fzf, "rofi -dmenu -p project -i")
+        #[arg(short = 'F', long)]
+        finder: String,
+    },
+
     /// Remove a worktree for the current project
     Delete {
         /// Worktree name to remove
@@ -206,6 +216,50 @@ mod tests {
                 assert!(open);
             }
             _ => panic!("expected Create"),
+        }
+    }
+
+    #[test]
+    fn test_pick_minimal() {
+        let cli = parse(&["yawn", "pick", "-F", "fzf"]);
+        match cli.command {
+            Command::Pick { path, finder } => {
+                assert!(path.is_none());
+                assert_eq!(finder, "fzf");
+            }
+            _ => panic!("expected Pick"),
+        }
+    }
+
+    #[test]
+    fn test_pick_with_path() {
+        let cli = parse(&["yawn", "pick", "/home/user", "-F", "fzf"]);
+        match cli.command {
+            Command::Pick { path, finder } => {
+                assert_eq!(path.unwrap(), PathBuf::from("/home/user"));
+                assert_eq!(finder, "fzf");
+            }
+            _ => panic!("expected Pick"),
+        }
+    }
+
+    #[test]
+    fn test_pick_complex_finder() {
+        let cli = parse(&["yawn", "pick", "-F", "rofi -dmenu -p project -i"]);
+        match cli.command {
+            Command::Pick { finder, .. } => {
+                assert_eq!(finder, "rofi -dmenu -p project -i");
+            }
+            _ => panic!("expected Pick"),
+        }
+    }
+
+    #[test]
+    fn test_pick_long_finder_flag() {
+        let cli = parse(&["yawn", "pick", "--finder", "fzf"]);
+        match cli.command {
+            Command::Pick { finder, .. } => assert_eq!(finder, "fzf"),
+            _ => panic!("expected Pick"),
         }
     }
 

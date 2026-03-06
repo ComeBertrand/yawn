@@ -6,10 +6,12 @@ mod pretty;
 mod session;
 mod worktree;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 use std::env;
+use std::io::Write;
 use std::path::PathBuf;
+use std::process::{Command as ProcessCommand, Stdio};
 
 use cli::{Cli, Command};
 
@@ -28,6 +30,7 @@ fn run() -> Result<()> {
     match cli.command {
         Command::List { path, pretty } => cmd_list(path, pretty, &config),
         Command::Resolve { name, path } => cmd_resolve(&name, path, &config),
+        Command::Pick { path, finder } => cmd_pick(path, &finder, &config),
         Command::Open { path } => cmd_open(&path, &config),
         Command::Create { name, source, open } => {
             cmd_create(&name, source.as_deref(), open, &config)
@@ -75,6 +78,47 @@ fn cmd_resolve(name: &str, path: Option<PathBuf>, config: &config::Config) -> Re
     let resolved = pretty::resolve(name, &paths)?;
     println!("{}", resolved.display());
     Ok(())
+}
+
+fn cmd_pick(path: Option<PathBuf>, finder: &str, config: &config::Config) -> Result<()> {
+    let root = path.unwrap_or(env::current_dir()?);
+    let ignore_set = discovery::build_ignore_set(&config.ignore)?;
+    let paths = discovery::discover(&root, &ignore_set, config.max_depth)?;
+    let entries = pretty::build_pretty_names(&paths);
+
+    if entries.is_empty() {
+        bail!("no projects found under {}", root.display());
+    }
+
+    let input: String = entries
+        .iter()
+        .map(|e| e.display_name.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let mut child = ProcessCommand::new("sh")
+        .arg("-c")
+        .arg(finder)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .with_context(|| format!("failed to run finder: {}", finder))?;
+
+    child.stdin.take().unwrap().write_all(input.as_bytes())?;
+
+    let output = child.wait_with_output()?;
+    if !output.status.success() {
+        bail!("finder exited with non-zero status");
+    }
+
+    let selection = String::from_utf8(output.stdout)?;
+    let selection = selection.trim();
+    if selection.is_empty() {
+        bail!("no project selected");
+    }
+
+    let resolved = pretty::resolve(selection, &paths)?;
+    session::open(&resolved, config.open_command.as_deref())
 }
 
 fn cmd_open(path: &std::path::Path, config: &config::Config) -> Result<()> {
