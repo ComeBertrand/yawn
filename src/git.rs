@@ -2,13 +2,22 @@ use anyhow::{bail, Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+/// Check that git is available.
+pub fn check_git_available() -> Result<()> {
+    Command::new("git")
+        .arg("--version")
+        .output()
+        .context("git is not installed or not in PATH")?;
+    Ok(())
+}
+
 /// Run a git command in the given directory and return stdout.
 fn git(dir: &Path, args: &[&str]) -> Result<String> {
     let output = Command::new("git")
         .args(args)
         .current_dir(dir)
         .output()
-        .context("failed to run git")?;
+        .context("git is not installed or not in PATH")?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

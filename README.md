@@ -35,7 +35,7 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/ComeBertrand/yawn/relea
 
 ```
 yawn list [path] [--pretty]     Discover git projects under a directory
-yawn resolve <pretty-name>      Map a pretty name back to an absolute path
+yawn resolve <pretty-name> [-P <path>]  Map a pretty name back to an absolute path
 yawn open <path>                Open a terminal in the given directory
 yawn create <name> [--source <base>] [--open]   Create a git worktree
 yawn delete <name>              Remove a worktree
@@ -174,10 +174,30 @@ root = "~/worktrees"
 
 ### Bash
 
-Copy `completions/yawn.bash` to your bash-completion directory:
-
 ```bash
 cp completions/yawn.bash ~/.local/share/bash-completion/completions/yawn
+```
+
+### Zsh
+
+```bash
+cp completions/yawn.zsh ~/.local/share/zsh/site-functions/_yawn
+```
+
+Or place it anywhere in your `$fpath`.
+
+### Fish
+
+```bash
+cp completions/yawn.fish ~/.config/fish/completions/yawn.fish
+```
+
+## Man Page
+
+A man page is generated at build time. After building from source:
+
+```bash
+man target/*/build/git-yawn-*/out/man/yawn.1
 ```
 
 ## License

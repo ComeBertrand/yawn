@@ -22,11 +22,12 @@ fn main() {
 
 fn run() -> Result<()> {
     let cli = Cli::parse();
+    git::check_git_available()?;
     let config = config::load_config()?;
 
     match cli.command {
         Command::List { path, pretty } => cmd_list(path, pretty, &config),
-        Command::Resolve { name } => cmd_resolve(&name, &config),
+        Command::Resolve { name, path } => cmd_resolve(&name, path, &config),
         Command::Open { path } => cmd_open(&path, &config),
         Command::Create { name, source, open } => {
             cmd_create(&name, source.as_deref(), open, &config)
@@ -67,8 +68,8 @@ fn cmd_list(path: Option<PathBuf>, pretty: bool, config: &config::Config) -> Res
     Ok(())
 }
 
-fn cmd_resolve(name: &str, config: &config::Config) -> Result<()> {
-    let root = env::current_dir()?;
+fn cmd_resolve(name: &str, path: Option<PathBuf>, config: &config::Config) -> Result<()> {
+    let root = path.unwrap_or(env::current_dir()?);
     let ignore_set = discovery::build_ignore_set(&config.ignore)?;
     let paths = discovery::discover(&root, &ignore_set, config.max_depth)?;
     let resolved = pretty::resolve(name, &paths)?;

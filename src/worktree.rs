@@ -86,7 +86,8 @@ pub fn copy_devwork_files(main_repo: &Path, worktree: &Path) -> Result<()> {
 ///
 /// Returns the path to the created worktree.
 pub fn create(name: &str, source: Option<&str>, config: &Config, cwd: &Path) -> Result<PathBuf> {
-    let main_root = git::repo_root(cwd)?;
+    let main_root = git::repo_root(cwd)
+        .context("not inside a git repository — run this from within a project")?;
     let project_name = main_root
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
@@ -98,6 +99,16 @@ pub fn create(name: &str, source: Option<&str>, config: &Config, cwd: &Path) -> 
 
     if target.exists() {
         bail!("worktree directory already exists: {}", target.display());
+    }
+
+    // Auto-create worktree root if it doesn't exist
+    if !config.worktree_root.exists() {
+        fs::create_dir_all(&config.worktree_root).with_context(|| {
+            format!(
+                "failed to create worktree root: {}",
+                config.worktree_root.display()
+            )
+        })?;
     }
 
     git::fetch(cwd)?;
@@ -125,7 +136,8 @@ pub fn create(name: &str, source: Option<&str>, config: &Config, cwd: &Path) -> 
 
 /// Delete a worktree for the current project.
 pub fn delete(name: &str, config: &Config, cwd: &Path) -> Result<()> {
-    let main_root = git::repo_root(cwd)?;
+    let main_root = git::repo_root(cwd)
+        .context("not inside a git repository — run this from within a project")?;
     let project_name = main_root
         .file_name()
         .map(|n| n.to_string_lossy().to_string())

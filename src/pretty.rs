@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 pub struct PrettyEntry {
     pub path: PathBuf,
     pub display_name: String,
-        sort_key: SortKey,
+    sort_key: SortKey,
 }
 
 /// Sort key for pretty entries: (group_name, is_worktree, short_name).

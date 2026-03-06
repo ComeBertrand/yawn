@@ -24,6 +24,10 @@ pub enum Command {
     Resolve {
         /// The pretty name to resolve
         name: String,
+
+        /// Directory to search (must match the path used with list)
+        #[arg(short = 'P', long)]
+        path: Option<PathBuf>,
     },
 
     /// Open a terminal in the given directory
@@ -118,7 +122,33 @@ mod tests {
     fn test_resolve() {
         let cli = parse(&["yawn", "resolve", "my-project"]);
         match cli.command {
-            Command::Resolve { name } => assert_eq!(name, "my-project"),
+            Command::Resolve { name, path } => {
+                assert_eq!(name, "my-project");
+                assert!(path.is_none());
+            }
+            _ => panic!("expected Resolve"),
+        }
+    }
+
+    #[test]
+    fn test_resolve_with_path() {
+        let cli = parse(&["yawn", "resolve", "my-project", "--path", "/home/user"]);
+        match cli.command {
+            Command::Resolve { name, path } => {
+                assert_eq!(name, "my-project");
+                assert_eq!(path.unwrap(), PathBuf::from("/home/user"));
+            }
+            _ => panic!("expected Resolve"),
+        }
+    }
+
+    #[test]
+    fn test_resolve_with_short_path() {
+        let cli = parse(&["yawn", "resolve", "my-project", "-P", "/tmp"]);
+        match cli.command {
+            Command::Resolve { path, .. } => {
+                assert_eq!(path.unwrap(), PathBuf::from("/tmp"));
+            }
             _ => panic!("expected Resolve"),
         }
     }
