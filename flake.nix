@@ -12,7 +12,7 @@
           version = "0.1.7";
           src = ./.;
           cargoLock.lockFile = ./Cargo.lock;
-          nativeBuildInputs = [ pkgs.installShellCompletion ];
+          nativeBuildInputs = [ pkgs.installShellFiles ];
           nativeCheckInputs = [ pkgs.git ];
           postInstall = ''
             installShellCompletion --bash completions/yawn.bash
