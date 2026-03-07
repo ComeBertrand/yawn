@@ -37,7 +37,7 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/ComeBertrand/yawn/relea
 yawn list [path] [--pretty]     Discover git projects under a directory
 yawn resolve <pretty-name> [-P <path>]  Map a pretty name back to an absolute path
 yawn pick [-F <finder>] [path]  Interactively pick a project and open it
-yawn open <path>                Open a terminal in the given directory
+yawn open <path> [-c <command>] Open a terminal in the given directory
 yawn create <name> [--source <base>] [--open]   Create a git worktree
 yawn delete <name>              Remove a worktree
 ```
@@ -95,6 +95,9 @@ The equivalent manual pipeline still works:
 
 ```bash
 yawn open "$(yawn resolve -P ~ "$(yawn list ~ --pretty | fzf)")"
+
+# override the configured open command for a single invocation
+yawn open /path/to/project -c "code {dir}"
 ```
 
 ### Worktrees
