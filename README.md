@@ -184,7 +184,8 @@ yawn delete feature-x
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `open_command` | string | unset | Command template to open a terminal session. Placeholders: `{dir}` (absolute path), `{name}` (directory basename). When unset, uses `$TERMINAL`, or falls back to `Terminal.app` on macOS and `xterm` on Linux. |
+| `opener` | string | unset | Command template to open a terminal session. Placeholders: `{dir}` (absolute path), `{name}` (directory basename). When unset, uses `$TERMINAL`, or falls back to `Terminal.app` on macOS and `xterm` on Linux. |
+| `finder` | string | unset | Default finder command for `yawn pick` (e.g. `fzf`, `rofi -dmenu -p project -i`). Can be overridden with `-F`. |
 
 ### `[worktree]`
 
@@ -200,7 +201,8 @@ max_depth = 3
 ignore = [".*", "node_modules", "target", "vendor"]
 
 [session]
-open_command = "kitty --directory {dir} --title 'dev: {name}'"
+opener = "kitty --directory {dir} --title 'dev: {name}'"
+finder = "fzf"
 
 [worktree]
 root = "~/worktrees"

@@ -35,7 +35,7 @@ fn run() -> Result<()> {
             porcelain,
         } => cmd_list(path, pretty, json, porcelain, &config),
         Command::Resolve { name, path } => cmd_resolve(&name, path, &config),
-        Command::Pick { path, finder } => cmd_pick(path, &finder, &config),
+        Command::Pick { path, finder } => cmd_pick(path, finder.as_deref(), &config),
         Command::Open { path, command } => cmd_open(&path, command.as_deref(), &config),
         Command::Create { name, source, open } => {
             cmd_create(&name, source.as_deref(), open, &config)
@@ -112,7 +112,10 @@ fn cmd_resolve(name: &str, path: Option<PathBuf>, config: &config::Config) -> Re
     Ok(())
 }
 
-fn cmd_pick(path: Option<PathBuf>, finder: &str, config: &config::Config) -> Result<()> {
+fn cmd_pick(path: Option<PathBuf>, finder: Option<&str>, config: &config::Config) -> Result<()> {
+    let finder = finder.or(config.finder.as_deref()).ok_or_else(|| {
+        anyhow::anyhow!("no finder configured: use -F or set session.finder in config")
+    })?;
     let root = path.unwrap_or(env::current_dir()?);
     let ignore_set = discovery::build_ignore_set(&config.ignore)?;
     let paths = discovery::discover(&root, &ignore_set, config.max_depth)?;
@@ -150,7 +153,7 @@ fn cmd_pick(path: Option<PathBuf>, finder: &str, config: &config::Config) -> Res
     }
 
     let resolved = pretty::resolve(selection, &paths)?;
-    session::open(&resolved, config.open_command.as_deref())
+    session::open(&resolved, config.opener.as_deref())
 }
 
 fn cmd_open(path: &std::path::Path, command: Option<&str>, config: &config::Config) -> Result<()> {
@@ -160,8 +163,8 @@ fn cmd_open(path: &std::path::Path, command: Option<&str>, config: &config::Conf
     if !path.is_dir() {
         bail!("path is not a directory: {}", path.display());
     }
-    let open_command = command.or(config.open_command.as_deref());
-    session::open(path, open_command)
+    let opener = command.or(config.opener.as_deref());
+    session::open(path, opener)
 }
 
 fn cmd_create(name: &str, source: Option<&str>, open: bool, config: &config::Config) -> Result<()> {
@@ -170,7 +173,7 @@ fn cmd_create(name: &str, source: Option<&str>, open: bool, config: &config::Con
     println!("created worktree at {}", wt_path.display());
 
     if open {
-        session::open(&wt_path, config.open_command.as_deref())?;
+        session::open(&wt_path, config.opener.as_deref())?;
     }
 
     Ok(())

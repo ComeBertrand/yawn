@@ -43,7 +43,7 @@ pub enum Command {
         /// Absolute path to the directory
         path: PathBuf,
 
-        /// Command to open the terminal (overrides config open_command)
+        /// Command to open the terminal (overrides config opener)
         #[arg(short, long)]
         command: Option<String>,
     },
@@ -67,9 +67,9 @@ pub enum Command {
         /// Directory to search (defaults to current directory)
         path: Option<PathBuf>,
 
-        /// Finder command to use (e.g. fzf, "rofi -dmenu -p project -i")
+        /// Finder command to use (overrides config finder, e.g. fzf, "rofi -dmenu -p project -i")
         #[arg(short = 'F', long)]
-        finder: String,
+        finder: Option<String>,
     },
 
     /// Remove a worktree for the current project
@@ -323,12 +323,24 @@ mod tests {
     }
 
     #[test]
-    fn test_pick_minimal() {
+    fn test_pick_with_finder() {
         let cli = parse(&["yawn", "pick", "-F", "fzf"]);
         match cli.command {
             Command::Pick { path, finder } => {
                 assert!(path.is_none());
-                assert_eq!(finder, "fzf");
+                assert_eq!(finder.unwrap(), "fzf");
+            }
+            _ => panic!("expected Pick"),
+        }
+    }
+
+    #[test]
+    fn test_pick_no_finder() {
+        let cli = parse(&["yawn", "pick"]);
+        match cli.command {
+            Command::Pick { path, finder } => {
+                assert!(path.is_none());
+                assert!(finder.is_none());
             }
             _ => panic!("expected Pick"),
         }
@@ -340,7 +352,7 @@ mod tests {
         match cli.command {
             Command::Pick { path, finder } => {
                 assert_eq!(path.unwrap(), PathBuf::from("/home/user"));
-                assert_eq!(finder, "fzf");
+                assert_eq!(finder.unwrap(), "fzf");
             }
             _ => panic!("expected Pick"),
         }
@@ -351,7 +363,7 @@ mod tests {
         let cli = parse(&["yawn", "pick", "-F", "rofi -dmenu -p project -i"]);
         match cli.command {
             Command::Pick { finder, .. } => {
-                assert_eq!(finder, "rofi -dmenu -p project -i");
+                assert_eq!(finder.unwrap(), "rofi -dmenu -p project -i");
             }
             _ => panic!("expected Pick"),
         }
@@ -361,7 +373,7 @@ mod tests {
     fn test_pick_long_finder_flag() {
         let cli = parse(&["yawn", "pick", "--finder", "fzf"]);
         match cli.command {
-            Command::Pick { finder, .. } => assert_eq!(finder, "fzf"),
+            Command::Pick { finder, .. } => assert_eq!(finder.unwrap(), "fzf"),
             _ => panic!("expected Pick"),
         }
     }

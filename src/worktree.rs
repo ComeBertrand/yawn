@@ -198,7 +198,8 @@ mod tests {
         Config {
             max_depth: 5,
             ignore: vec![".*".to_string(), "node_modules".to_string()],
-            open_command: None,
+            opener: None,
+            finder: None,
             worktree_root,
         }
     }

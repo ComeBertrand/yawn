@@ -17,7 +17,8 @@ pub struct DiscoveryConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct SessionConfig {
-    pub open_command: Option<String>,
+    pub opener: Option<String>,
+    pub finder: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -29,7 +30,8 @@ pub struct WorktreeConfig {
 pub struct Config {
     pub max_depth: usize,
     pub ignore: Vec<String>,
-    pub open_command: Option<String>,
+    pub opener: Option<String>,
+    pub finder: Option<String>,
     pub worktree_root: PathBuf,
 }
 
@@ -38,7 +40,8 @@ impl Default for Config {
         Self {
             max_depth: 5,
             ignore: vec![".*".to_string(), "node_modules".to_string()],
-            open_command: None,
+            opener: None,
+            finder: None,
             worktree_root: dirs::home_dir()
                 .unwrap_or_else(|| PathBuf::from("/"))
                 .join("worktrees"),
@@ -76,7 +79,8 @@ pub fn parse_config(toml_str: &str) -> Result<Config> {
         .and_then(|d| d.ignore.clone())
         .unwrap_or(defaults.ignore);
 
-    let open_command = file.session.as_ref().and_then(|s| s.open_command.clone());
+    let opener = file.session.as_ref().and_then(|s| s.opener.clone());
+    let finder = file.session.as_ref().and_then(|s| s.finder.clone());
 
     let worktree_root = file
         .worktree
@@ -88,7 +92,8 @@ pub fn parse_config(toml_str: &str) -> Result<Config> {
     Ok(Config {
         max_depth,
         ignore,
-        open_command,
+        opener,
+        finder,
         worktree_root,
     })
 }
@@ -117,7 +122,7 @@ mod tests {
         let config = Config::default();
         assert_eq!(config.max_depth, 5);
         assert_eq!(config.ignore, vec![".*", "node_modules"]);
-        assert!(config.open_command.is_none());
+        assert!(config.opener.is_none());
         assert!(config.worktree_root.ends_with("worktrees"));
     }
 
@@ -126,7 +131,7 @@ mod tests {
         let config = parse_config("").unwrap();
         assert_eq!(config.max_depth, 5);
         assert_eq!(config.ignore, vec![".*", "node_modules"]);
-        assert!(config.open_command.is_none());
+        assert!(config.opener.is_none());
     }
 
     #[test]
@@ -158,13 +163,35 @@ ignore = [".*", "node_modules", "target", "vendor"]
     fn test_parse_session() {
         let toml = r#"
 [session]
-open_command = "kitty --directory {dir} --title 'dev: {name}'"
+opener = "kitty --directory {dir} --title 'dev: {name}'"
 "#;
         let config = parse_config(toml).unwrap();
         assert_eq!(
-            config.open_command.unwrap(),
+            config.opener.unwrap(),
             "kitty --directory {dir} --title 'dev: {name}'"
         );
+    }
+
+    #[test]
+    fn test_parse_session_finder() {
+        let toml = r#"
+[session]
+finder = "fzf"
+"#;
+        let config = parse_config(toml).unwrap();
+        assert_eq!(config.finder.unwrap(), "fzf");
+    }
+
+    #[test]
+    fn test_parse_session_both() {
+        let toml = r#"
+[session]
+opener = "kitty --directory {dir}"
+finder = "rofi -dmenu -p project -i"
+"#;
+        let config = parse_config(toml).unwrap();
+        assert_eq!(config.opener.unwrap(), "kitty --directory {dir}");
+        assert_eq!(config.finder.unwrap(), "rofi -dmenu -p project -i");
     }
 
     #[test]
@@ -196,7 +223,7 @@ max_depth = 10
 ignore = [".*"]
 
 [session]
-open_command = "alacritty --working-directory {dir}"
+opener = "alacritty --working-directory {dir}"
 
 [worktree]
 root = "/opt/worktrees"
@@ -205,7 +232,7 @@ root = "/opt/worktrees"
         assert_eq!(config.max_depth, 10);
         assert_eq!(config.ignore, vec![".*"]);
         assert_eq!(
-            config.open_command.unwrap(),
+            config.opener.unwrap(),
             "alacritty --working-directory {dir}"
         );
         assert_eq!(config.worktree_root, PathBuf::from("/opt/worktrees"));

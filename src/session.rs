@@ -8,14 +8,14 @@ pub fn build_command(template: &str, dir: &str, name: &str) -> String {
 }
 
 /// Open a terminal session in the given directory.
-pub fn open(dir: &Path, open_command: Option<&str>) -> Result<()> {
+pub fn open(dir: &Path, opener: Option<&str>) -> Result<()> {
     let dir_str = dir.to_string_lossy();
     let name = dir
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "unknown".to_string());
 
-    if let Some(template) = open_command {
+    if let Some(template) = opener {
         let cmd = build_command(template, &dir_str, &name);
         let status = Command::new("sh").arg("-c").arg(&cmd).status()?;
         if !status.success() {
