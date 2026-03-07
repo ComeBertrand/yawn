@@ -9,7 +9,7 @@ mod worktree;
 use anyhow::{bail, Context, Result};
 use clap::Parser;
 use std::env;
-use std::io::Write;
+use std::io::{IsTerminal, Write};
 use std::path::PathBuf;
 use std::process::{Command as ProcessCommand, Stdio};
 
@@ -28,7 +28,12 @@ fn run() -> Result<()> {
     let config = config::load_config()?;
 
     match cli.command {
-        Command::List { path, pretty, json } => cmd_list(path, pretty, json, &config),
+        Command::List {
+            path,
+            pretty,
+            json,
+            porcelain,
+        } => cmd_list(path, pretty, json, porcelain, &config),
         Command::Resolve { name, path } => cmd_resolve(&name, path, &config),
         Command::Pick { path, finder } => cmd_pick(path, &finder, &config),
         Command::Open { path, command } => cmd_open(&path, command.as_deref(), &config),
@@ -44,6 +49,7 @@ fn cmd_list(
     path: Option<PathBuf>,
     pretty: bool,
     json: bool,
+    porcelain: bool,
     config: &config::Config,
 ) -> Result<()> {
     let paths = if let Some(root) = path {
@@ -67,25 +73,26 @@ fn cmd_list(
         let json_entries: Vec<serde_json::Value> = entries
             .iter()
             .map(|e| {
-                let is_wt = pretty::is_worktree(&e.path);
-                let worktree_of = if is_wt {
-                    pretty::worktree_main_repo_name(&e.path).ok()
-                } else {
-                    None
-                };
                 serde_json::json!({
                     "path": e.path.to_string_lossy(),
                     "name": e.display_name,
-                    "is_worktree": is_wt,
-                    "worktree_of": worktree_of,
+                    "is_worktree": e.worktree_of.is_some(),
+                    "worktree_of": e.worktree_of,
                 })
             })
             .collect();
         println!("{}", serde_json::to_string_pretty(&json_entries)?);
     } else if pretty {
         let entries = pretty::build_pretty_names(&paths);
-        for entry in &entries {
-            println!("{}", entry.display_name);
+        let use_tree = !porcelain && std::io::stdout().is_terminal();
+        if use_tree {
+            for line in pretty::build_tree_output(&entries) {
+                println!("{}", line);
+            }
+        } else {
+            for entry in &entries {
+                println!("{}", entry.display_name);
+            }
         }
     } else {
         for path in &paths {

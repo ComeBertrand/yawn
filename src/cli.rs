@@ -22,6 +22,10 @@ pub enum Command {
         /// Output as JSON array
         #[arg(long)]
         json: bool,
+
+        /// Force stable flat output (for scripting with --pretty)
+        #[arg(long)]
+        porcelain: bool,
     },
 
     /// Map a pretty name back to an absolute path
@@ -95,10 +99,16 @@ mod tests {
     fn test_list_no_args() {
         let cli = parse(&["yawn", "list"]);
         match cli.command {
-            Command::List { path, pretty, json } => {
+            Command::List {
+                path,
+                pretty,
+                json,
+                porcelain,
+            } => {
                 assert!(path.is_none());
                 assert!(!pretty);
                 assert!(!json);
+                assert!(!porcelain);
             }
             _ => panic!("expected List"),
         }
@@ -108,10 +118,16 @@ mod tests {
     fn test_list_with_path() {
         let cli = parse(&["yawn", "list", "/home/user"]);
         match cli.command {
-            Command::List { path, pretty, json } => {
+            Command::List {
+                path,
+                pretty,
+                json,
+                porcelain,
+            } => {
                 assert_eq!(path.unwrap(), PathBuf::from("/home/user"));
                 assert!(!pretty);
                 assert!(!json);
+                assert!(!porcelain);
             }
             _ => panic!("expected List"),
         }
@@ -157,6 +173,20 @@ mod tests {
             Command::List { path, json, .. } => {
                 assert_eq!(path.unwrap(), PathBuf::from("/tmp"));
                 assert!(json);
+            }
+            _ => panic!("expected List"),
+        }
+    }
+
+    #[test]
+    fn test_list_porcelain() {
+        let cli = parse(&["yawn", "list", "--pretty", "--porcelain"]);
+        match cli.command {
+            Command::List {
+                pretty, porcelain, ..
+            } => {
+                assert!(pretty);
+                assert!(porcelain);
             }
             _ => panic!("expected List"),
         }

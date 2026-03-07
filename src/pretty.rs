@@ -1,4 +1,5 @@
 use anyhow::{bail, Result};
+use colored::Colorize;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -8,6 +9,10 @@ use std::path::{Path, PathBuf};
 pub struct PrettyEntry {
     pub path: PathBuf,
     pub display_name: String,
+    /// Short name before disambiguation (e.g. "feature" for a worktree, "myapp" for a repo)
+    pub base_name: String,
+    /// If this is a worktree, the name of the main repo it belongs to
+    pub worktree_of: Option<String>,
     sort_key: SortKey,
 }
 
@@ -72,12 +77,7 @@ pub fn build_pretty_names(paths: &[PathBuf]) -> Vec<PrettyEntry> {
                     basename.clone()
                 };
                 let sort_key = (main_name.to_lowercase(), 1, short_name.to_lowercase());
-                entries.push((
-                    path.clone(),
-                    short_name,
-                    Some(format!("[worktree of {}]", main_name)),
-                    sort_key,
-                ));
+                entries.push((path.clone(), short_name, Some(main_name), sort_key));
                 continue;
             }
         }
@@ -94,14 +94,16 @@ pub fn build_pretty_names(paths: &[PathBuf]) -> Vec<PrettyEntry> {
 
     let mut result: Vec<PrettyEntry> = entries
         .iter()
-        .map(|(path, name, annotation, sort_key)| {
-            let display = match annotation {
-                Some(ann) => format!("{} {}", name, ann),
+        .map(|(path, name, worktree_of, sort_key)| {
+            let display = match worktree_of {
+                Some(main_name) => format!("{} [worktree of {}]", name, main_name),
                 None => name.clone(),
             };
             PrettyEntry {
                 path: path.clone(),
                 display_name: display,
+                base_name: name.clone(),
+                worktree_of: worktree_of.clone(),
                 sort_key: sort_key.clone(),
             }
         })
@@ -119,9 +121,14 @@ pub fn build_pretty_names(paths: &[PathBuf]) -> Vec<PrettyEntry> {
         let suffixes = shortest_unique_suffixes(&paths_for_collision);
 
         for (j, &idx) in indices.iter().enumerate() {
-            let (_, ref base_name, ref annotation, _) = entries[idx];
-            let display = match annotation {
-                Some(ann) => format!("{} ({}) {}", base_name, suffixes[j], ann),
+            let (_, ref base_name, ref worktree_of, _) = entries[idx];
+            let display = match worktree_of {
+                Some(main_name) => {
+                    format!(
+                        "{} ({}) [worktree of {}]",
+                        base_name, suffixes[j], main_name
+                    )
+                }
                 None => format!("{} ({})", base_name, suffixes[j]),
             };
             result[idx].display_name = display;
@@ -187,6 +194,45 @@ fn shortest_unique_suffixes(paths: &[&Path]) -> Vec<String> {
     }
 
     suffixes
+}
+
+/// Render pretty entries as a tree with colors.
+///
+/// Regular repos are shown as bold top-level entries.
+/// Worktrees are grouped under their parent repo with tree-drawing characters.
+pub fn build_tree_output(entries: &[PrettyEntry]) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut i = 0;
+    while i < entries.len() {
+        let entry = &entries[i];
+        if entry.worktree_of.is_some() {
+            // Orphan worktree (no parent in the list) — show standalone
+            let prefix = "└─ ".dimmed();
+            lines.push(format!("{}{}", prefix, entry.base_name.cyan()));
+            i += 1;
+            continue;
+        }
+
+        // Regular repo — collect its worktrees
+        lines.push(format!("{}", entry.base_name.bold()));
+        let repo_name = &entry.base_name;
+        i += 1;
+
+        // Gather consecutive worktrees belonging to this repo
+        let wt_start = i;
+        while i < entries.len() && entries[i].worktree_of.as_deref() == Some(repo_name) {
+            i += 1;
+        }
+        let wt_end = i;
+
+        let wt_count = wt_end - wt_start;
+        for (j, entry) in entries[wt_start..wt_end].iter().enumerate() {
+            let is_last = j == wt_count - 1;
+            let connector = if is_last { "└─ " } else { "├─ " };
+            lines.push(format!("{}{}", connector.dimmed(), entry.base_name.cyan()));
+        }
+    }
+    lines
 }
 
 /// Resolve a pretty name to an absolute path.
@@ -535,5 +581,74 @@ mod tests {
         assert_ne!(names[0], names[1]);
         assert_ne!(names[1], names[2]);
         assert_ne!(names[0], names[2]);
+    }
+
+    #[test]
+    fn test_tree_output_no_worktrees() {
+        let tmp = TempDir::new().unwrap();
+        let alpha = tmp.path().join("alpha");
+        let beta = tmp.path().join("beta");
+        make_git_repo(&alpha);
+        make_git_repo(&beta);
+
+        let paths = vec![alpha, beta];
+        let entries = build_pretty_names(&paths);
+        let lines = build_tree_output(&entries);
+        // Strip ANSI codes for comparison
+        let plain: Vec<String> = lines.iter().map(|l| strip_ansi(l)).collect();
+        assert_eq!(plain, vec!["alpha", "beta"]);
+    }
+
+    #[test]
+    fn test_tree_output_with_worktrees() {
+        let tmp = TempDir::new().unwrap();
+        let myapp = tmp.path().join("myapp");
+        make_git_repo(&myapp);
+        let wt_bug = tmp.path().join("myapp--bugfix");
+        make_git_worktree(&wt_bug, &myapp);
+        let wt_feat = tmp.path().join("myapp--feature");
+        make_git_worktree(&wt_feat, &myapp);
+        let zebra = tmp.path().join("zebra");
+        make_git_repo(&zebra);
+
+        let paths = vec![myapp, wt_bug, wt_feat, zebra];
+        let entries = build_pretty_names(&paths);
+        let lines = build_tree_output(&entries);
+        let plain: Vec<String> = lines.iter().map(|l| strip_ansi(l)).collect();
+        assert_eq!(plain, vec!["myapp", "├─ bugfix", "└─ feature", "zebra"]);
+    }
+
+    #[test]
+    fn test_tree_output_single_worktree() {
+        let tmp = TempDir::new().unwrap();
+        let myapp = tmp.path().join("myapp");
+        make_git_repo(&myapp);
+        let wt = tmp.path().join("myapp--feature");
+        make_git_worktree(&wt, &myapp);
+
+        let paths = vec![myapp, wt];
+        let entries = build_pretty_names(&paths);
+        let lines = build_tree_output(&entries);
+        let plain: Vec<String> = lines.iter().map(|l| strip_ansi(l)).collect();
+        assert_eq!(plain, vec!["myapp", "└─ feature"]);
+    }
+
+    /// Strip ANSI escape codes from a string for test assertions.
+    fn strip_ansi(s: &str) -> String {
+        let mut result = String::new();
+        let mut chars = s.chars();
+        while let Some(c) = chars.next() {
+            if c == '\x1b' {
+                // Skip until 'm'
+                for inner in chars.by_ref() {
+                    if inner == 'm' {
+                        break;
+                    }
+                }
+            } else {
+                result.push(c);
+            }
+        }
+        result
     }
 }

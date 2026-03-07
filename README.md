@@ -34,7 +34,7 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/ComeBertrand/yawn/relea
 ## Usage
 
 ```
-yawn list [path] [--pretty] [--json]  Discover git projects under a directory
+yawn list [path] [--pretty] [--json] [--porcelain]  Discover git projects
 yawn resolve <pretty-name> [-P <path>]  Map a pretty name back to an absolute path
 yawn pick [-F <finder>] [path]  Interactively pick a project and open it
 yawn open <path> [-c <command>] Open a terminal in the given directory
@@ -49,7 +49,8 @@ Recursively discovers git projects under a directory. Takes an optional path, de
 ```bash
 yawn list ~/projects       # discover projects under ~/projects
 yawn list                  # discover projects under cwd
-yawn list ~/projects -p    # human-readable with worktree annotations
+yawn list ~/projects -p    # tree view in terminal, flat when piped
+yawn list ~/projects -p --porcelain  # force flat output (stable for scripts)
 yawn list ~/projects --json # structured JSON output
 ```
 
@@ -63,11 +64,23 @@ yawn list ~/projects --json
 # ]
 ```
 
-Pretty output example:
+When stdout is a terminal, `--pretty` shows a colored tree view with worktrees grouped under their parent:
+
+```
+my-app
+├─ fix-branch
+└─ feature-x
+dotfiles
+notes (personal)
+notes (work)
+```
+
+When piped (or with `--porcelain`), it falls back to the flat format for compatibility with tools like `fzf`:
 
 ```
 my-app
 fix-branch [worktree of my-app]
+feature-x [worktree of my-app]
 dotfiles
 notes (personal)
 notes (work)
