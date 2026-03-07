@@ -60,7 +60,7 @@ The `--json` flag outputs an array of objects with `path`, `name`, `is_worktree`
 yawn list ~/projects --json
 # [
 #   { "path": "/home/user/projects/myapp", "name": "myapp", "is_worktree": false, "worktree_of": null },
-#   { "path": "/home/user/projects/myapp--feature", "name": "feature [worktree of myapp]", "is_worktree": true, "worktree_of": "myapp" }
+#   { "path": "/home/user/projects/myapp--feature", "name": "feature @myapp", "is_worktree": true, "worktree_of": "myapp" }
 # ]
 ```
 
@@ -79,8 +79,8 @@ When piped (or with `--porcelain`), it falls back to the flat format for compati
 
 ```
 my-app
-fix-branch [worktree of my-app]
-feature-x [worktree of my-app]
+fix-branch @my-app
+feature-x @my-app
 dotfiles
 notes (personal)
 notes (work)
@@ -135,7 +135,7 @@ Worktrees are created under a configurable root directory (default: `~/worktrees
 When listing with `--pretty`, the `<project>--` prefix is stripped and the worktree is annotated:
 
 ```
-feature-x [worktree of my-app]
+feature-x @my-app
 ```
 
 Branch resolution when creating a worktree follows this order:

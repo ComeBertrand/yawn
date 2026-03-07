@@ -56,7 +56,7 @@ pub fn worktree_main_repo_name(path: &Path) -> Result<String> {
 ///
 /// Rules:
 /// 1. Base display name is the directory basename.
-/// 2. If worktree: strip `<project>--` prefix, annotate with `[worktree of <project>]`.
+/// 2. If worktree: strip `<project>--` prefix, annotate with `@<project>`.
 /// 3. Disambiguate collisions with shortest unique parent path suffix.
 pub fn build_pretty_names(paths: &[PathBuf]) -> Vec<PrettyEntry> {
     // Step 1: compute base names
@@ -96,7 +96,7 @@ pub fn build_pretty_names(paths: &[PathBuf]) -> Vec<PrettyEntry> {
         .iter()
         .map(|(path, name, worktree_of, sort_key)| {
             let display = match worktree_of {
-                Some(main_name) => format!("{} [worktree of {}]", name, main_name),
+                Some(main_name) => format!("{} @{}", name, main_name),
                 None => name.clone(),
             };
             PrettyEntry {
@@ -124,10 +124,7 @@ pub fn build_pretty_names(paths: &[PathBuf]) -> Vec<PrettyEntry> {
             let (_, ref base_name, ref worktree_of, _) = entries[idx];
             let display = match worktree_of {
                 Some(main_name) => {
-                    format!(
-                        "{} ({}) [worktree of {}]",
-                        base_name, suffixes[j], main_name
-                    )
+                    format!("{} ({}) @{}", base_name, suffixes[j], main_name)
                 }
                 None => format!("{} ({})", base_name, suffixes[j]),
             };
@@ -208,7 +205,7 @@ pub fn build_tree_output(entries: &[PrettyEntry]) -> Vec<String> {
         if entry.worktree_of.is_some() {
             // Orphan worktree (no parent in the list) — show standalone
             let prefix = "└─ ".dimmed();
-            lines.push(format!("{}{}", prefix, entry.base_name.cyan()));
+            lines.push(format!("{}{}", prefix, entry.base_name.green()));
             i += 1;
             continue;
         }
@@ -229,7 +226,7 @@ pub fn build_tree_output(entries: &[PrettyEntry]) -> Vec<String> {
         for (j, entry) in entries[wt_start..wt_end].iter().enumerate() {
             let is_last = j == wt_count - 1;
             let connector = if is_last { "└─ " } else { "├─ " };
-            lines.push(format!("{}{}", connector.dimmed(), entry.base_name.cyan()));
+            lines.push(format!("{}{}", connector.dimmed(), entry.base_name.green()));
         }
     }
     lines
@@ -334,10 +331,7 @@ mod tests {
         let paths = vec![main_repo, wt];
         let entries = build_pretty_names(&paths);
         assert_eq!(entries[0].display_name, "cargostack-backend");
-        assert_eq!(
-            entries[1].display_name,
-            "fix-branch [worktree of cargostack-backend]"
-        );
+        assert_eq!(entries[1].display_name, "fix-branch @cargostack-backend");
     }
 
     #[test]
@@ -424,7 +418,7 @@ mod tests {
         // The worktree should also have its annotation
         let wt_entry = &entries[1];
         assert!(
-            wt_entry.display_name.contains("[worktree of myapp]"),
+            wt_entry.display_name.contains("@myapp"),
             "expected worktree annotation, got: {}",
             wt_entry.display_name
         );
@@ -457,7 +451,7 @@ mod tests {
         make_git_worktree(&wt, &main_repo);
 
         let paths = vec![main_repo, wt.clone()];
-        let result = resolve("feature [worktree of myapp]", &paths).unwrap();
+        let result = resolve("feature @myapp", &paths).unwrap();
         assert_eq!(result, wt);
     }
 
@@ -538,13 +532,7 @@ mod tests {
 
         assert_eq!(
             names,
-            vec![
-                "alpha",
-                "myapp",
-                "bugfix [worktree of myapp]",
-                "feature [worktree of myapp]",
-                "zebra",
-            ]
+            vec!["alpha", "myapp", "bugfix @myapp", "feature @myapp", "zebra",]
         );
     }
 
