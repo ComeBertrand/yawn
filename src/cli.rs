@@ -18,6 +18,10 @@ pub enum Command {
         /// Show human-readable names with annotations
         #[arg(short, long)]
         pretty: bool,
+
+        /// Output as JSON array
+        #[arg(long)]
+        json: bool,
     },
 
     /// Map a pretty name back to an absolute path
@@ -91,9 +95,10 @@ mod tests {
     fn test_list_no_args() {
         let cli = parse(&["yawn", "list"]);
         match cli.command {
-            Command::List { path, pretty } => {
+            Command::List { path, pretty, json } => {
                 assert!(path.is_none());
                 assert!(!pretty);
+                assert!(!json);
             }
             _ => panic!("expected List"),
         }
@@ -103,9 +108,10 @@ mod tests {
     fn test_list_with_path() {
         let cli = parse(&["yawn", "list", "/home/user"]);
         match cli.command {
-            Command::List { path, pretty } => {
+            Command::List { path, pretty, json } => {
                 assert_eq!(path.unwrap(), PathBuf::from("/home/user"));
                 assert!(!pretty);
+                assert!(!json);
             }
             _ => panic!("expected List"),
         }
@@ -124,9 +130,33 @@ mod tests {
     fn test_list_path_and_pretty() {
         let cli = parse(&["yawn", "list", "/tmp", "--pretty"]);
         match cli.command {
-            Command::List { path, pretty } => {
+            Command::List { path, pretty, .. } => {
                 assert_eq!(path.unwrap(), PathBuf::from("/tmp"));
                 assert!(pretty);
+            }
+            _ => panic!("expected List"),
+        }
+    }
+
+    #[test]
+    fn test_list_json() {
+        let cli = parse(&["yawn", "list", "--json"]);
+        match cli.command {
+            Command::List { json, pretty, .. } => {
+                assert!(json);
+                assert!(!pretty);
+            }
+            _ => panic!("expected List"),
+        }
+    }
+
+    #[test]
+    fn test_list_json_with_path() {
+        let cli = parse(&["yawn", "list", "/tmp", "--json"]);
+        match cli.command {
+            Command::List { path, json, .. } => {
+                assert_eq!(path.unwrap(), PathBuf::from("/tmp"));
+                assert!(json);
             }
             _ => panic!("expected List"),
         }

@@ -34,7 +34,7 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/ComeBertrand/yawn/relea
 ## Usage
 
 ```
-yawn list [path] [--pretty]     Discover git projects under a directory
+yawn list [path] [--pretty] [--json]  Discover git projects under a directory
 yawn resolve <pretty-name> [-P <path>]  Map a pretty name back to an absolute path
 yawn pick [-F <finder>] [path]  Interactively pick a project and open it
 yawn open <path> [-c <command>] Open a terminal in the given directory
@@ -50,6 +50,17 @@ Recursively discovers git projects under a directory. Takes an optional path, de
 yawn list ~/projects       # discover projects under ~/projects
 yawn list                  # discover projects under cwd
 yawn list ~/projects -p    # human-readable with worktree annotations
+yawn list ~/projects --json # structured JSON output
+```
+
+The `--json` flag outputs an array of objects with `path`, `name`, `is_worktree`, and `worktree_of` fields:
+
+```bash
+yawn list ~/projects --json
+# [
+#   { "path": "/home/user/projects/myapp", "name": "myapp", "is_worktree": false, "worktree_of": null },
+#   { "path": "/home/user/projects/myapp--feature", "name": "feature [worktree of myapp]", "is_worktree": true, "worktree_of": "myapp" }
+# ]
 ```
 
 Pretty output example:

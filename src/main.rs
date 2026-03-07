@@ -28,7 +28,7 @@ fn run() -> Result<()> {
     let config = config::load_config()?;
 
     match cli.command {
-        Command::List { path, pretty } => cmd_list(path, pretty, &config),
+        Command::List { path, pretty, json } => cmd_list(path, pretty, json, &config),
         Command::Resolve { name, path } => cmd_resolve(&name, path, &config),
         Command::Pick { path, finder } => cmd_pick(path, &finder, &config),
         Command::Open { path, command } => cmd_open(&path, command.as_deref(), &config),
@@ -40,7 +40,12 @@ fn run() -> Result<()> {
     }
 }
 
-fn cmd_list(path: Option<PathBuf>, pretty: bool, config: &config::Config) -> Result<()> {
+fn cmd_list(
+    path: Option<PathBuf>,
+    pretty: bool,
+    json: bool,
+    config: &config::Config,
+) -> Result<()> {
     let paths = if let Some(root) = path {
         // Explicit path: always discover
         let ignore_set = discovery::build_ignore_set(&config.ignore)?;
@@ -57,7 +62,27 @@ fn cmd_list(path: Option<PathBuf>, pretty: bool, config: &config::Config) -> Res
         }
     };
 
-    if pretty {
+    if json {
+        let entries = pretty::build_pretty_names(&paths);
+        let json_entries: Vec<serde_json::Value> = entries
+            .iter()
+            .map(|e| {
+                let is_wt = pretty::is_worktree(&e.path);
+                let worktree_of = if is_wt {
+                    pretty::worktree_main_repo_name(&e.path).ok()
+                } else {
+                    None
+                };
+                serde_json::json!({
+                    "path": e.path.to_string_lossy(),
+                    "name": e.display_name,
+                    "is_worktree": is_wt,
+                    "worktree_of": worktree_of,
+                })
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&json_entries)?);
+    } else if pretty {
         let entries = pretty::build_pretty_names(&paths);
         for entry in &entries {
             println!("{}", entry.display_name);
