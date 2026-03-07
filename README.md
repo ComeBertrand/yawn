@@ -34,7 +34,7 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/ComeBertrand/yawn/relea
 ## Usage
 
 ```
-yawn list [path] [--pretty] [--json] [--porcelain]  Discover git projects
+yawn list [path] [--json] [--raw] [--porcelain]  Discover git projects
 yawn resolve <pretty-name> [-P <path>]  Map a pretty name back to an absolute path
 yawn pick [-F <finder>] [path]  Interactively pick a project and open it
 yawn open <path> [-c <command>] Open a terminal in the given directory
@@ -47,24 +47,14 @@ yawn delete <name>              Remove a worktree
 Recursively discovers git projects under a directory. Takes an optional path, defaults to the current directory.
 
 ```bash
-yawn list ~/projects       # discover projects under ~/projects
-yawn list                  # discover projects under cwd
-yawn list ~/projects -p    # tree view in terminal, flat when piped
-yawn list ~/projects -p --porcelain  # force flat output (stable for scripts)
-yawn list ~/projects --json # structured JSON output
+yawn list ~/projects           # pretty output (tree in terminal, flat when piped)
+yawn list                      # discover projects under cwd
+yawn list --porcelain          # force flat pretty names (stable for scripts)
+yawn list --raw                # absolute paths, one per line
+yawn list --json               # structured JSON output
 ```
 
-The `--json` flag outputs an array of objects with `path`, `name`, `is_worktree`, and `worktree_of` fields:
-
-```bash
-yawn list ~/projects --json
-# [
-#   { "path": "/home/user/projects/myapp", "name": "myapp", "is_worktree": false, "worktree_of": null },
-#   { "path": "/home/user/projects/myapp--feature", "name": "feature @myapp", "is_worktree": true, "worktree_of": "myapp" }
-# ]
-```
-
-When stdout is a terminal, `--pretty` shows a colored tree view with worktrees grouped under their parent:
+By default, the output is human-friendly. In a terminal, projects are shown as a colored tree with worktrees grouped under their parent:
 
 ```
 my-app
@@ -75,7 +65,7 @@ notes (personal)
 notes (work)
 ```
 
-When piped (or with `--porcelain`), it falls back to the flat format for compatibility with tools like `fzf`:
+When piped (or with `--porcelain`), it falls back to flat pretty names for compatibility with tools like `fzf`:
 
 ```
 my-app
@@ -84,6 +74,25 @@ feature-x @my-app
 dotfiles
 notes (personal)
 notes (work)
+```
+
+The `--raw` flag outputs absolute paths, one per line:
+
+```
+/home/user/projects/my-app
+/home/user/worktrees/my-app--fix-branch
+/home/user/worktrees/my-app--feature-x
+/home/user/projects/dotfiles
+```
+
+The `--json` flag outputs an array of objects with `path`, `name`, `is_worktree`, and `worktree_of` fields:
+
+```bash
+yawn list ~/projects --json
+# [
+#   { "path": "/home/user/projects/myapp", "name": "myapp", "is_worktree": false, "worktree_of": null },
+#   { "path": "/home/user/projects/myapp--feature", "name": "feature @myapp", "is_worktree": true, "worktree_of": "myapp" }
+# ]
 ```
 
 If run inside a git repo (without a path), it lists the repo itself and its worktrees:

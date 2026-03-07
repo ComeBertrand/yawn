@@ -15,15 +15,15 @@ pub enum Command {
         /// Directory to search (defaults to current directory)
         path: Option<PathBuf>,
 
-        /// Show human-readable names with annotations
-        #[arg(short, long)]
-        pretty: bool,
-
         /// Output as JSON array
         #[arg(long)]
         json: bool,
 
-        /// Force stable flat output (for scripting with --pretty)
+        /// Output absolute paths, one per line
+        #[arg(long)]
+        raw: bool,
+
+        /// Force stable flat output (for scripting)
         #[arg(long)]
         porcelain: bool,
     },
@@ -101,13 +101,13 @@ mod tests {
         match cli.command {
             Command::List {
                 path,
-                pretty,
                 json,
+                raw,
                 porcelain,
             } => {
                 assert!(path.is_none());
-                assert!(!pretty);
                 assert!(!json);
+                assert!(!raw);
                 assert!(!porcelain);
             }
             _ => panic!("expected List"),
@@ -120,13 +120,13 @@ mod tests {
         match cli.command {
             Command::List {
                 path,
-                pretty,
                 json,
+                raw,
                 porcelain,
             } => {
                 assert_eq!(path.unwrap(), PathBuf::from("/home/user"));
-                assert!(!pretty);
                 assert!(!json);
+                assert!(!raw);
                 assert!(!porcelain);
             }
             _ => panic!("expected List"),
@@ -134,21 +134,21 @@ mod tests {
     }
 
     #[test]
-    fn test_list_pretty() {
-        let cli = parse(&["yawn", "list", "--pretty"]);
+    fn test_list_raw() {
+        let cli = parse(&["yawn", "list", "--raw"]);
         match cli.command {
-            Command::List { pretty, .. } => assert!(pretty),
+            Command::List { raw, .. } => assert!(raw),
             _ => panic!("expected List"),
         }
     }
 
     #[test]
-    fn test_list_path_and_pretty() {
-        let cli = parse(&["yawn", "list", "/tmp", "--pretty"]);
+    fn test_list_path_and_raw() {
+        let cli = parse(&["yawn", "list", "/tmp", "--raw"]);
         match cli.command {
-            Command::List { path, pretty, .. } => {
+            Command::List { path, raw, .. } => {
                 assert_eq!(path.unwrap(), PathBuf::from("/tmp"));
-                assert!(pretty);
+                assert!(raw);
             }
             _ => panic!("expected List"),
         }
@@ -158,9 +158,9 @@ mod tests {
     fn test_list_json() {
         let cli = parse(&["yawn", "list", "--json"]);
         match cli.command {
-            Command::List { json, pretty, .. } => {
+            Command::List { json, raw, .. } => {
                 assert!(json);
-                assert!(!pretty);
+                assert!(!raw);
             }
             _ => panic!("expected List"),
         }
@@ -180,12 +180,9 @@ mod tests {
 
     #[test]
     fn test_list_porcelain() {
-        let cli = parse(&["yawn", "list", "--pretty", "--porcelain"]);
+        let cli = parse(&["yawn", "list", "--porcelain"]);
         match cli.command {
-            Command::List {
-                pretty, porcelain, ..
-            } => {
-                assert!(pretty);
+            Command::List { porcelain, .. } => {
                 assert!(porcelain);
             }
             _ => panic!("expected List"),

@@ -30,10 +30,10 @@ fn run() -> Result<()> {
     match cli.command {
         Command::List {
             path,
-            pretty,
             json,
+            raw,
             porcelain,
-        } => cmd_list(path, pretty, json, porcelain, &config),
+        } => cmd_list(path, json, raw, porcelain, &config),
         Command::Resolve { name, path } => cmd_resolve(&name, path, &config),
         Command::Pick { path, finder } => cmd_pick(path, finder.as_deref(), &config),
         Command::Open { path, command } => cmd_open(&path, command.as_deref(), &config),
@@ -47,8 +47,8 @@ fn run() -> Result<()> {
 
 fn cmd_list(
     path: Option<PathBuf>,
-    pretty: bool,
     json: bool,
+    raw: bool,
     porcelain: bool,
     config: &config::Config,
 ) -> Result<()> {
@@ -82,7 +82,11 @@ fn cmd_list(
             })
             .collect();
         println!("{}", serde_json::to_string_pretty(&json_entries)?);
-    } else if pretty {
+    } else if raw {
+        for path in &paths {
+            println!("{}", path.display());
+        }
+    } else {
         let entries = pretty::build_pretty_names(&paths);
         let use_tree = !porcelain && std::io::stdout().is_terminal();
         if use_tree {
@@ -93,10 +97,6 @@ fn cmd_list(
             for entry in &entries {
                 println!("{}", entry.display_name);
             }
-        }
-    } else {
-        for path in &paths {
-            println!("{}", path.display());
         }
     }
 
