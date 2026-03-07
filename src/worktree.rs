@@ -5,83 +5,6 @@ use std::path::{Path, PathBuf};
 use crate::config::Config;
 use crate::git;
 
-/// Parse a `.yawninclude` file and return the list of file paths to copy.
-/// Blank lines and lines starting with `#` are ignored.
-pub fn parse_devwork(content: &str) -> Vec<String> {
-    content
-        .lines()
-        .map(|line| line.trim())
-        .filter(|line| !line.is_empty() && !line.starts_with('#'))
-        .map(|line| line.to_string())
-        .collect()
-}
-
-/// Expand a pattern relative to a directory, supporting globs.
-/// If the pattern contains glob characters, expand it; otherwise treat it as a literal path.
-fn expand_pattern(base: &Path, pattern: &str) -> Vec<PathBuf> {
-    if pattern.contains('*') || pattern.contains('?') || pattern.contains('[') {
-        let glob = match globset::Glob::new(pattern) {
-            Ok(g) => g.compile_matcher(),
-            Err(_) => return Vec::new(),
-        };
-        collect_files(base, base, &glob).unwrap_or_default()
-    } else {
-        let path = base.join(pattern);
-        if path.exists() {
-            vec![PathBuf::from(pattern)]
-        } else {
-            Vec::new()
-        }
-    }
-}
-
-/// Recursively collect files under `dir` that match `glob`, returning paths relative to `base`.
-fn collect_files(base: &Path, dir: &Path, glob: &globset::GlobMatcher) -> Result<Vec<PathBuf>> {
-    let mut results = Vec::new();
-    let entries = match fs::read_dir(dir) {
-        Ok(entries) => entries,
-        Err(_) => return Ok(results),
-    };
-    for entry in entries {
-        let entry = entry?;
-        let path = entry.path();
-        let rel = path.strip_prefix(base).unwrap_or(&path);
-        if path.is_dir() {
-            results.extend(collect_files(base, &path, glob)?);
-        } else if glob.is_match(rel) {
-            results.push(rel.to_path_buf());
-        }
-    }
-    Ok(results)
-}
-
-/// Copy files listed in `.yawninclude` from the main repo to the worktree.
-/// Patterns support globs (e.g. `data_file*.csv`, `config/*.toml`).
-pub fn copy_devwork_files(main_repo: &Path, worktree: &Path) -> Result<()> {
-    let devwork_path = main_repo.join(".yawninclude");
-    if !devwork_path.exists() {
-        return Ok(());
-    }
-
-    let content = fs::read_to_string(&devwork_path)?;
-    let patterns = parse_devwork(&content);
-
-    for pattern in &patterns {
-        let files = expand_pattern(main_repo, pattern);
-        for file in &files {
-            let src = main_repo.join(file);
-            let dst = worktree.join(file);
-            if let Some(parent) = dst.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            fs::copy(&src, &dst)
-                .with_context(|| format!("failed to copy {} to worktree", file.display()))?;
-        }
-    }
-
-    Ok(())
-}
-
 /// Create a worktree for the current project.
 ///
 /// Returns the path to the created worktree.
@@ -128,8 +51,6 @@ pub fn create(name: &str, source: Option<&str>, config: &Config, cwd: &Path) -> 
         let default = git::default_branch(cwd)?;
         git::worktree_add_new_branch(cwd, &target, name, &default)?;
     }
-
-    copy_devwork_files(&main_root, &target)?;
 
     Ok(target)
 }
@@ -201,171 +122,8 @@ mod tests {
             opener: None,
             finder: None,
             worktree_root,
+            auto_init: false,
         }
-    }
-
-    // --- parse_devwork tests ---
-
-    #[test]
-    fn test_parse_devwork_basic() {
-        let content = ".env\n.env.local\nconfig/dev.toml\n";
-        let files = parse_devwork(content);
-        assert_eq!(files, vec![".env", ".env.local", "config/dev.toml"]);
-    }
-
-    #[test]
-    fn test_parse_devwork_comments_and_blanks() {
-        let content = "# Local environment files\n.env\n\n# Config\nconfig/dev.toml\n\n";
-        let files = parse_devwork(content);
-        assert_eq!(files, vec![".env", "config/dev.toml"]);
-    }
-
-    #[test]
-    fn test_parse_devwork_empty() {
-        let files = parse_devwork("");
-        assert!(files.is_empty());
-    }
-
-    #[test]
-    fn test_parse_devwork_only_comments() {
-        let files = parse_devwork("# comment\n# another\n");
-        assert!(files.is_empty());
-    }
-
-    #[test]
-    fn test_parse_devwork_whitespace_trimming() {
-        let content = "  .env  \n  config/dev.toml  \n";
-        let files = parse_devwork(content);
-        assert_eq!(files, vec![".env", "config/dev.toml"]);
-    }
-
-    // --- copy_devwork_files tests ---
-
-    #[test]
-    fn test_copy_devwork_files_no_devwork_file() {
-        let tmp = TempDir::new().unwrap();
-        let main_repo = tmp.path().join("main");
-        let worktree = tmp.path().join("wt");
-        fs::create_dir_all(&main_repo).unwrap();
-        fs::create_dir_all(&worktree).unwrap();
-
-        // Should succeed silently when .yawninclude doesn't exist
-        copy_devwork_files(&main_repo, &worktree).unwrap();
-    }
-
-    #[test]
-    fn test_copy_devwork_files_copies_listed_files() {
-        let tmp = TempDir::new().unwrap();
-        let main_repo = tmp.path().join("main");
-        let worktree = tmp.path().join("wt");
-        fs::create_dir_all(&main_repo).unwrap();
-        fs::create_dir_all(&worktree).unwrap();
-
-        // Create .yawninclude and the files it references
-        fs::write(main_repo.join(".yawninclude"), ".env\nconfig/local.toml\n").unwrap();
-        fs::write(main_repo.join(".env"), "SECRET=123").unwrap();
-        fs::create_dir_all(main_repo.join("config")).unwrap();
-        fs::write(main_repo.join("config/local.toml"), "[db]\nhost=localhost").unwrap();
-
-        copy_devwork_files(&main_repo, &worktree).unwrap();
-
-        assert_eq!(
-            fs::read_to_string(worktree.join(".env")).unwrap(),
-            "SECRET=123"
-        );
-        assert_eq!(
-            fs::read_to_string(worktree.join("config/local.toml")).unwrap(),
-            "[db]\nhost=localhost"
-        );
-    }
-
-    #[test]
-    fn test_copy_devwork_files_skips_missing_source() {
-        let tmp = TempDir::new().unwrap();
-        let main_repo = tmp.path().join("main");
-        let worktree = tmp.path().join("wt");
-        fs::create_dir_all(&main_repo).unwrap();
-        fs::create_dir_all(&worktree).unwrap();
-
-        fs::write(main_repo.join(".yawninclude"), ".env\nmissing-file\n").unwrap();
-        fs::write(main_repo.join(".env"), "SECRET=123").unwrap();
-
-        // Should not error on missing source file
-        copy_devwork_files(&main_repo, &worktree).unwrap();
-        assert!(worktree.join(".env").exists());
-        assert!(!worktree.join("missing-file").exists());
-    }
-
-    #[test]
-    fn test_copy_devwork_files_glob_pattern() {
-        let tmp = TempDir::new().unwrap();
-        let main_repo = tmp.path().join("main");
-        let worktree = tmp.path().join("wt");
-        fs::create_dir_all(&main_repo).unwrap();
-        fs::create_dir_all(&worktree).unwrap();
-
-        fs::write(main_repo.join(".yawninclude"), "data_*.csv\n").unwrap();
-        fs::write(main_repo.join("data_users.csv"), "id,name").unwrap();
-        fs::write(main_repo.join("data_orders.csv"), "id,total").unwrap();
-        fs::write(main_repo.join("other.csv"), "should not be copied").unwrap();
-
-        copy_devwork_files(&main_repo, &worktree).unwrap();
-        assert!(worktree.join("data_users.csv").exists());
-        assert!(worktree.join("data_orders.csv").exists());
-        assert!(!worktree.join("other.csv").exists());
-    }
-
-    #[test]
-    fn test_copy_devwork_files_glob_in_subdir() {
-        let tmp = TempDir::new().unwrap();
-        let main_repo = tmp.path().join("main");
-        let worktree = tmp.path().join("wt");
-        fs::create_dir_all(&main_repo).unwrap();
-        fs::create_dir_all(&worktree).unwrap();
-
-        fs::write(main_repo.join(".yawninclude"), "config/*.toml\n").unwrap();
-        fs::create_dir_all(main_repo.join("config")).unwrap();
-        fs::write(main_repo.join("config/dev.toml"), "dev").unwrap();
-        fs::write(main_repo.join("config/test.toml"), "test").unwrap();
-        fs::write(main_repo.join("config/keep.json"), "not matched").unwrap();
-
-        copy_devwork_files(&main_repo, &worktree).unwrap();
-        assert!(worktree.join("config/dev.toml").exists());
-        assert!(worktree.join("config/test.toml").exists());
-        assert!(!worktree.join("config/keep.json").exists());
-    }
-
-    #[test]
-    fn test_copy_devwork_files_glob_no_matches() {
-        let tmp = TempDir::new().unwrap();
-        let main_repo = tmp.path().join("main");
-        let worktree = tmp.path().join("wt");
-        fs::create_dir_all(&main_repo).unwrap();
-        fs::create_dir_all(&worktree).unwrap();
-
-        fs::write(main_repo.join(".yawninclude"), "*.xyz\n").unwrap();
-
-        // No matches should not error
-        copy_devwork_files(&main_repo, &worktree).unwrap();
-    }
-
-    #[test]
-    fn test_copy_devwork_files_mixed_literal_and_glob() {
-        let tmp = TempDir::new().unwrap();
-        let main_repo = tmp.path().join("main");
-        let worktree = tmp.path().join("wt");
-        fs::create_dir_all(&main_repo).unwrap();
-        fs::create_dir_all(&worktree).unwrap();
-
-        fs::write(main_repo.join(".yawninclude"), ".env\ndata_*.csv\n").unwrap();
-        fs::write(main_repo.join(".env"), "SECRET=123").unwrap();
-        fs::write(main_repo.join("data_a.csv"), "a").unwrap();
-        fs::write(main_repo.join("data_b.csv"), "b").unwrap();
-
-        copy_devwork_files(&main_repo, &worktree).unwrap();
-        assert!(worktree.join(".env").exists());
-        assert!(worktree.join("data_a.csv").exists());
-        assert!(worktree.join("data_b.csv").exists());
     }
 
     // --- create tests ---
@@ -431,26 +189,6 @@ mod tests {
         let result = create("feature-x", None, &config, &repo);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("already exists"),);
-    }
-
-    #[test]
-    fn test_create_copies_devwork_files() {
-        let tmp = TempDir::new().unwrap();
-        let repo = tmp.path().join("myproject");
-        init_repo(&repo);
-
-        fs::write(repo.join(".yawninclude"), ".env\n").unwrap();
-        fs::write(repo.join(".env"), "DB_HOST=localhost").unwrap();
-
-        let wt_root = tmp.path().join("worktrees");
-        fs::create_dir_all(&wt_root).unwrap();
-        let config = test_config(wt_root);
-
-        let result = create("feature-x", None, &config, &repo).unwrap();
-        assert_eq!(
-            fs::read_to_string(result.join(".env")).unwrap(),
-            "DB_HOST=localhost"
-        );
     }
 
     // --- delete tests ---

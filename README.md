@@ -4,7 +4,7 @@
 [![crates.io](https://img.shields.io/crates/v/git-yawn.svg)](https://crates.io/crates/git-yawn)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A CLI tool for managing git worktrees and discovering projects.
+A fast project switcher and worktree manager for git.
 
 ## Install
 
@@ -38,8 +38,9 @@ yawn list [path] [--json] [--raw] [--porcelain]  Discover git projects
 yawn resolve <pretty-name> [-P <path>]  Map a pretty name back to an absolute path
 yawn pick [-F <finder>] [path]  Interactively pick a project and open it
 yawn open <path> [-c <command>] Open a terminal in the given directory
-yawn create <name> [--source <base>] [--open]   Create a git worktree
+yawn create <name> [--source <base>] [--open] [--init]  Create a git worktree
 yawn delete <name>              Remove a worktree
+yawn init                       Initialize the current directory
 ```
 
 ### Listing projects
@@ -155,16 +156,6 @@ Branch resolution when creating a worktree follows this order:
 3. If `--source <base>` is provided, create a new branch from `<base>`.
 4. Otherwise, create a new branch from the default branch (`origin/HEAD`, falling back to `main` then `master`).
 
-If a `.yawninclude` file exists in the main repo root, the files it lists are copied into the new worktree. This is useful for local config files like `.env` that aren't tracked by git. Glob patterns are supported.
-
-```
-# .yawninclude
-.env
-.env.local
-config/*.toml
-data_*.csv
-```
-
 ```bash
 # Create a worktree (new branch from default branch)
 yawn create feature-x
@@ -175,13 +166,62 @@ yawn create feature-x --source develop
 # Create and immediately open a terminal in it
 yawn create feature-x --open
 
+# Create and run init (copy files + setup commands)
+yawn create feature-x --init
+
+# All flags combine
+yawn create feature-x --source develop --init --open
+
 # Delete a worktree
 yawn delete feature-x
 ```
 
+### Initializing a project
+
+`yawn init` sets up the current directory by copying files from the main repo and running setup commands. Configuration lives in `.yawn.toml` at the repo root:
+
+```toml
+[init]
+include = [".env", ".env.local", "config/*.toml"]
+commands = ["npm install", "cargo build"]
+```
+
+- **`include`** — files and glob patterns to copy from the main repo into worktrees. Useful for local config files (`.env`, etc.) that aren't tracked by git.
+- **`commands`** — shell commands to run sequentially in the target directory. Stops on first failure.
+
+When run in a worktree, `yawn init` copies include files from the main repo and then runs commands. When run in the main repo itself (e.g. after a fresh clone), it skips the copy step and only runs commands.
+
+```bash
+# Initialize the current directory
+yawn init
+
+# Create a worktree and initialize it in one step
+yawn create feature-x --init
+```
+
 ## Configuration
 
-`~/.config/yawn/config.toml` — all fields are optional.
+There are two config files:
+
+- **`~/.config/yawn/config.toml`** — global user config (discovery, session, worktree settings)
+- **`.yawn.toml`** — per-project config, lives in the repo root and should be committed to git (init settings)
+
+### `.yawn.toml` (per-project)
+
+| Key | Type | Description |
+|---|---|---|
+| `init.include` | list of strings | Files/glob patterns to copy from the main repo into worktrees. |
+| `init.commands` | list of strings | Shell commands to run sequentially during init. |
+
+```toml
+[init]
+include = [".env", ".env.local", "config/*.toml"]
+commands = ["npm install"]
+```
+
+### `~/.config/yawn/config.toml` (global)
+
+All fields are optional.
 
 ### `[discovery]`
 
@@ -202,6 +242,7 @@ yawn delete feature-x
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `root` | string | `~/worktrees` | Directory where worktrees are created. Supports `~` expansion. |
+| `auto_init` | boolean | `false` | Automatically run init after creating a worktree (equivalent to always passing `--init`). |
 
 ### Example
 

@@ -27,6 +27,13 @@ fn git(dir: &Path, args: &[&str]) -> Result<String> {
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
+/// Resolve the toplevel of the current working tree (the checkout root).
+/// For the main repo this is the repo root; for a worktree it's the worktree directory.
+pub fn toplevel(dir: &Path) -> Result<PathBuf> {
+    let tl = git(dir, &["rev-parse", "--show-toplevel"])?;
+    Ok(PathBuf::from(tl))
+}
+
 /// Resolve the main repository root (the common dir for worktrees).
 pub fn repo_root(dir: &Path) -> Result<PathBuf> {
     let common_dir = git(dir, &["rev-parse", "--git-common-dir"])?;

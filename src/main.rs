@@ -2,6 +2,7 @@ mod cli;
 mod config;
 mod discovery;
 mod git;
+mod init;
 mod pretty;
 mod session;
 mod worktree;
@@ -37,9 +38,13 @@ fn run() -> Result<()> {
         Command::Resolve { name, path } => cmd_resolve(&name, path, &config),
         Command::Pick { path, finder } => cmd_pick(path, finder.as_deref(), &config),
         Command::Open { path, command } => cmd_open(&path, command.as_deref(), &config),
-        Command::Create { name, source, open } => {
-            cmd_create(&name, source.as_deref(), open, &config)
-        }
+        Command::Create {
+            name,
+            source,
+            open,
+            init,
+        } => cmd_create(&name, source.as_deref(), open, init, &config),
+        Command::Init {} => cmd_init(),
         Command::Delete { name } => cmd_delete(&name, &config),
         Command::Complete { subcommand } => cmd_complete(&subcommand),
     }
@@ -167,16 +172,31 @@ fn cmd_open(path: &std::path::Path, command: Option<&str>, config: &config::Conf
     session::open(path, opener)
 }
 
-fn cmd_create(name: &str, source: Option<&str>, open: bool, config: &config::Config) -> Result<()> {
+fn cmd_create(
+    name: &str,
+    source: Option<&str>,
+    open: bool,
+    run_init: bool,
+    config: &config::Config,
+) -> Result<()> {
     let cwd = env::current_dir()?;
     let wt_path = worktree::create(name, source, config, &cwd)?;
     println!("created worktree at {}", wt_path.display());
+
+    if run_init || config.auto_init {
+        init::run(&wt_path)?;
+    }
 
     if open {
         session::open(&wt_path, config.opener.as_deref())?;
     }
 
     Ok(())
+}
+
+fn cmd_init() -> Result<()> {
+    let cwd = env::current_dir()?;
+    init::run(&cwd)
 }
 
 fn cmd_delete(name: &str, config: &config::Config) -> Result<()> {

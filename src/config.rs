@@ -24,6 +24,7 @@ pub struct SessionConfig {
 #[derive(Debug, Deserialize)]
 pub struct WorktreeConfig {
     pub root: Option<String>,
+    pub auto_init: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -33,6 +34,7 @@ pub struct Config {
     pub opener: Option<String>,
     pub finder: Option<String>,
     pub worktree_root: PathBuf,
+    pub auto_init: bool,
 }
 
 impl Default for Config {
@@ -45,6 +47,7 @@ impl Default for Config {
             worktree_root: dirs::home_dir()
                 .unwrap_or_else(|| PathBuf::from("/"))
                 .join("worktrees"),
+            auto_init: false,
         }
     }
 }
@@ -89,12 +92,19 @@ pub fn parse_config(toml_str: &str) -> Result<Config> {
         .map(|r| expand_tilde(r))
         .unwrap_or(defaults.worktree_root);
 
+    let auto_init = file
+        .worktree
+        .as_ref()
+        .and_then(|w| w.auto_init)
+        .unwrap_or(defaults.auto_init);
+
     Ok(Config {
         max_depth,
         ignore,
         opener,
         finder,
         worktree_root,
+        auto_init,
     })
 }
 
@@ -236,6 +246,22 @@ root = "/opt/worktrees"
             "alacritty --working-directory {dir}"
         );
         assert_eq!(config.worktree_root, PathBuf::from("/opt/worktrees"));
+    }
+
+    #[test]
+    fn test_parse_auto_init() {
+        let toml = r#"
+[worktree]
+auto_init = true
+"#;
+        let config = parse_config(toml).unwrap();
+        assert!(config.auto_init);
+    }
+
+    #[test]
+    fn test_parse_auto_init_default() {
+        let config = parse_config("").unwrap();
+        assert!(!config.auto_init);
     }
 
     #[test]

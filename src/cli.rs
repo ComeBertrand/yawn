@@ -60,7 +60,14 @@ pub enum Command {
         /// Open a terminal in the worktree after creation
         #[arg(short, long)]
         open: bool,
+
+        /// Run init after creating the worktree
+        #[arg(short, long)]
+        init: bool,
     },
+
+    /// Initialize the current directory (copy files, run setup commands from .yawn.toml)
+    Init {},
 
     /// Interactively pick a project and open a terminal in it
     Pick {
@@ -276,10 +283,16 @@ mod tests {
     fn test_create_minimal() {
         let cli = parse(&["yawn", "create", "feature-x"]);
         match cli.command {
-            Command::Create { name, source, open } => {
+            Command::Create {
+                name,
+                source,
+                open,
+                init,
+            } => {
                 assert_eq!(name, "feature-x");
                 assert!(source.is_none());
                 assert!(!open);
+                assert!(!init);
             }
             _ => panic!("expected Create"),
         }
@@ -307,16 +320,54 @@ mod tests {
     }
 
     #[test]
-    fn test_create_all_flags() {
-        let cli = parse(&["yawn", "create", "feature-x", "--source", "main", "--open"]);
+    fn test_create_with_init() {
+        let cli = parse(&["yawn", "create", "feature-x", "--init"]);
         match cli.command {
-            Command::Create { name, source, open } => {
+            Command::Create { init, .. } => assert!(init),
+            _ => panic!("expected Create"),
+        }
+    }
+
+    #[test]
+    fn test_create_with_init_short() {
+        let cli = parse(&["yawn", "create", "feature-x", "-i"]);
+        match cli.command {
+            Command::Create { init, .. } => assert!(init),
+            _ => panic!("expected Create"),
+        }
+    }
+
+    #[test]
+    fn test_create_all_flags() {
+        let cli = parse(&[
+            "yawn",
+            "create",
+            "feature-x",
+            "--source",
+            "main",
+            "--open",
+            "--init",
+        ]);
+        match cli.command {
+            Command::Create {
+                name,
+                source,
+                open,
+                init,
+            } => {
                 assert_eq!(name, "feature-x");
                 assert_eq!(source.unwrap(), "main");
                 assert!(open);
+                assert!(init);
             }
             _ => panic!("expected Create"),
         }
+    }
+
+    #[test]
+    fn test_init() {
+        let cli = parse(&["yawn", "init"]);
+        assert!(matches!(cli.command, Command::Init {}));
     }
 
     #[test]
