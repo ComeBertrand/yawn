@@ -86,7 +86,7 @@ notes (personal)
 notes (work)
 ```
 
-If run inside a git repo (without a path), it lists the worktrees of that repo instead:
+If run inside a git repo (without a path), it lists the repo itself and its worktrees:
 
 ```bash
 cd ~/projects/my-app
@@ -94,6 +94,7 @@ yawn list
 ```
 
 ```
+/home/user/projects/my-app
 /home/user/worktrees/my-app--fix-branch
 /home/user/worktrees/my-app--feature-x
 ```
