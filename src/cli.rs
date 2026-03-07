@@ -34,6 +34,10 @@ pub enum Command {
     Open {
         /// Absolute path to the directory
         path: PathBuf,
+
+        /// Command to open the terminal (overrides config open_command)
+        #[arg(short, long)]
+        command: Option<String>,
     },
 
     /// Create a git worktree for the current project
@@ -167,7 +171,46 @@ mod tests {
     fn test_open() {
         let cli = parse(&["yawn", "open", "/home/user/project"]);
         match cli.command {
-            Command::Open { path } => assert_eq!(path, PathBuf::from("/home/user/project")),
+            Command::Open { path, command } => {
+                assert_eq!(path, PathBuf::from("/home/user/project"));
+                assert!(command.is_none());
+            }
+            _ => panic!("expected Open"),
+        }
+    }
+
+    #[test]
+    fn test_open_with_command() {
+        let cli = parse(&[
+            "yawn",
+            "open",
+            "/home/user/project",
+            "-c",
+            "kitty --directory {dir}",
+        ]);
+        match cli.command {
+            Command::Open { path, command } => {
+                assert_eq!(path, PathBuf::from("/home/user/project"));
+                assert_eq!(command.unwrap(), "kitty --directory {dir}");
+            }
+            _ => panic!("expected Open"),
+        }
+    }
+
+    #[test]
+    fn test_open_with_long_command() {
+        let cli = parse(&[
+            "yawn",
+            "open",
+            "/tmp",
+            "--command",
+            "alacritty --working-directory {dir}",
+        ]);
+        match cli.command {
+            Command::Open { path, command } => {
+                assert_eq!(path, PathBuf::from("/tmp"));
+                assert_eq!(command.unwrap(), "alacritty --working-directory {dir}");
+            }
             _ => panic!("expected Open"),
         }
     }

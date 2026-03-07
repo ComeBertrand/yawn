@@ -31,7 +31,7 @@ fn run() -> Result<()> {
         Command::List { path, pretty } => cmd_list(path, pretty, &config),
         Command::Resolve { name, path } => cmd_resolve(&name, path, &config),
         Command::Pick { path, finder } => cmd_pick(path, &finder, &config),
-        Command::Open { path } => cmd_open(&path, &config),
+        Command::Open { path, command } => cmd_open(&path, command.as_deref(), &config),
         Command::Create { name, source, open } => {
             cmd_create(&name, source.as_deref(), open, &config)
         }
@@ -121,14 +121,15 @@ fn cmd_pick(path: Option<PathBuf>, finder: &str, config: &config::Config) -> Res
     session::open(&resolved, config.open_command.as_deref())
 }
 
-fn cmd_open(path: &std::path::Path, config: &config::Config) -> Result<()> {
+fn cmd_open(path: &std::path::Path, command: Option<&str>, config: &config::Config) -> Result<()> {
     if !path.is_absolute() {
         bail!("path must be absolute: {}", path.display());
     }
     if !path.is_dir() {
         bail!("path is not a directory: {}", path.display());
     }
-    session::open(path, config.open_command.as_deref())
+    let open_command = command.or(config.open_command.as_deref());
+    session::open(path, open_command)
 }
 
 fn cmd_create(name: &str, source: Option<&str>, open: bool, config: &config::Config) -> Result<()> {
