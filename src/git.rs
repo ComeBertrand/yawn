@@ -140,6 +140,15 @@ pub fn worktree_remove(dir: &Path, target: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Force-remove a worktree (allows dirty/locked worktrees).
+pub fn worktree_remove_force(dir: &Path, target: &Path) -> Result<()> {
+    git(
+        dir,
+        &["worktree", "remove", "--force", &target.to_string_lossy()],
+    )?;
+    Ok(())
+}
+
 /// Delete a local branch with `git branch -d` (safe delete).
 pub fn delete_branch(dir: &Path, name: &str) -> Result<()> {
     git(dir, &["branch", "-d", name])?;

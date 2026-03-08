@@ -193,6 +193,22 @@ fn shortest_unique_suffixes(paths: &[&Path]) -> Vec<String> {
     suffixes
 }
 
+/// Get the display name for tree output.
+///
+/// For worktrees, strips the ` @<parent>` annotation from `display_name`
+/// since the tree structure already shows the parent relationship.
+fn tree_name(entry: &PrettyEntry) -> &str {
+    if let Some(ref parent) = entry.worktree_of {
+        let suffix = format!(" @{}", parent);
+        entry
+            .display_name
+            .strip_suffix(&suffix)
+            .unwrap_or(&entry.display_name)
+    } else {
+        &entry.display_name
+    }
+}
+
 /// Render pretty entries as a tree with colors.
 ///
 /// Regular repos are shown as bold top-level entries.
@@ -205,13 +221,13 @@ pub fn build_tree_output(entries: &[PrettyEntry]) -> Vec<String> {
         if entry.worktree_of.is_some() {
             // Orphan worktree (no parent in the list) — show standalone
             let prefix = "└─ ".dimmed();
-            lines.push(format!("{}{}", prefix, entry.base_name.green()));
+            lines.push(format!("{}{}", prefix, tree_name(entry).green()));
             i += 1;
             continue;
         }
 
         // Regular repo — collect its worktrees
-        lines.push(format!("{}", entry.base_name.bold()));
+        lines.push(format!("{}", tree_name(entry).bold()));
         let repo_name = &entry.base_name;
         i += 1;
 
@@ -226,7 +242,11 @@ pub fn build_tree_output(entries: &[PrettyEntry]) -> Vec<String> {
         for (j, entry) in entries[wt_start..wt_end].iter().enumerate() {
             let is_last = j == wt_count - 1;
             let connector = if is_last { "└─ " } else { "├─ " };
-            lines.push(format!("{}{}", connector.dimmed(), entry.base_name.green()));
+            lines.push(format!(
+                "{}{}",
+                connector.dimmed(),
+                tree_name(entry).green()
+            ));
         }
     }
     lines
@@ -619,6 +639,32 @@ mod tests {
         let lines = build_tree_output(&entries);
         let plain: Vec<String> = lines.iter().map(|l| strip_ansi(l)).collect();
         assert_eq!(plain, vec!["myapp", "└─ feature"]);
+    }
+
+    #[test]
+    fn test_tree_output_disambiguated_repos() {
+        let tmp = TempDir::new().unwrap();
+        let notes_personal = tmp.path().join("personal").join("notes");
+        let notes_work = tmp.path().join("work").join("notes");
+        make_git_repo(&notes_personal);
+        make_git_repo(&notes_work);
+
+        let paths = vec![notes_personal, notes_work];
+        let entries = build_pretty_names(&paths);
+        let lines = build_tree_output(&entries);
+        let plain: Vec<String> = lines.iter().map(|l| strip_ansi(l)).collect();
+
+        assert_eq!(plain.len(), 2);
+        assert!(
+            plain[0].contains("personal"),
+            "expected disambiguation, got: {}",
+            plain[0]
+        );
+        assert!(
+            plain[1].contains("work"),
+            "expected disambiguation, got: {}",
+            plain[1]
+        );
     }
 
     /// Strip ANSI escape codes from a string for test assertions.

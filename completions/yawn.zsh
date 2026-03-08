@@ -9,6 +9,7 @@ _yawn() {
         'pick:Interactively pick a project and open a terminal in it'
         'create:Create a git worktree for the current project'
         'delete:Remove a worktree for the current project'
+        'init:Initialize the current directory'
     )
 
     _arguments -C \
@@ -27,8 +28,9 @@ _yawn() {
             case $words[1] in
                 list)
                     _arguments \
-                        '-p[Show human-readable names with annotations]' \
-                        '--pretty[Show human-readable names with annotations]' \
+                        '--json[Output as JSON array]' \
+                        '--raw[Output absolute paths, one per line]' \
+                        '--porcelain[Force stable flat output for scripting]' \
                         '-h[Print help]' \
                         '--help[Print help]' \
                         '::path:_files -/'
@@ -51,6 +53,8 @@ _yawn() {
                     ;;
                 open)
                     _arguments \
+                        '-c+[Command to open the terminal]:command:' \
+                        '--command=[Command to open the terminal]:command:' \
                         '-h[Print help]' \
                         '--help[Print help]' \
                         ':path:{compadd $(yawn complete open 2>/dev/null)}'
@@ -61,15 +65,26 @@ _yawn() {
                         '--source=[Base branch/ref]:source:' \
                         '-o[Open a terminal in the worktree after creation]' \
                         '--open[Open a terminal in the worktree after creation]' \
+                        '-i[Run init after creating the worktree]' \
+                        '--init[Run init after creating the worktree]' \
                         '-h[Print help]' \
                         '--help[Print help]' \
                         ':name:'
                     ;;
                 delete)
                     _arguments \
+                        '-b[Also delete the local branch]' \
+                        '--branch[Also delete the local branch]' \
+                        '-f[Force removal even if worktree has uncommitted changes]' \
+                        '--force[Force removal even if worktree has uncommitted changes]' \
                         '-h[Print help]' \
                         '--help[Print help]' \
                         ':name:{compadd $(yawn complete delete 2>/dev/null)}'
+                    ;;
+                init)
+                    _arguments \
+                        '-h[Print help]' \
+                        '--help[Print help]'
                     ;;
             esac
             ;;

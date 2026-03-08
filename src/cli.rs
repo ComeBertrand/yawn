@@ -87,6 +87,10 @@ pub enum Command {
         /// Also delete the local branch (skip prompt)
         #[arg(short, long)]
         branch: bool,
+
+        /// Force removal even if worktree has uncommitted changes
+        #[arg(short, long)]
+        force: bool,
     },
 
     /// Output completion candidates (hidden)
@@ -434,9 +438,14 @@ mod tests {
     fn test_delete() {
         let cli = parse(&["yawn", "delete", "feature-x"]);
         match cli.command {
-            Command::Delete { name, branch } => {
+            Command::Delete {
+                name,
+                branch,
+                force,
+            } => {
                 assert_eq!(name, "feature-x");
                 assert!(!branch);
+                assert!(!force);
             }
             _ => panic!("expected Delete"),
         }
@@ -446,7 +455,7 @@ mod tests {
     fn test_delete_with_branch() {
         let cli = parse(&["yawn", "delete", "feature-x", "--branch"]);
         match cli.command {
-            Command::Delete { name, branch } => {
+            Command::Delete { name, branch, .. } => {
                 assert_eq!(name, "feature-x");
                 assert!(branch);
             }
@@ -459,6 +468,41 @@ mod tests {
         let cli = parse(&["yawn", "delete", "feature-x", "-b"]);
         match cli.command {
             Command::Delete { branch, .. } => assert!(branch),
+            _ => panic!("expected Delete"),
+        }
+    }
+
+    #[test]
+    fn test_delete_with_force() {
+        let cli = parse(&["yawn", "delete", "feature-x", "--force"]);
+        match cli.command {
+            Command::Delete { force, .. } => assert!(force),
+            _ => panic!("expected Delete"),
+        }
+    }
+
+    #[test]
+    fn test_delete_with_force_short() {
+        let cli = parse(&["yawn", "delete", "feature-x", "-f"]);
+        match cli.command {
+            Command::Delete { force, .. } => assert!(force),
+            _ => panic!("expected Delete"),
+        }
+    }
+
+    #[test]
+    fn test_delete_all_flags() {
+        let cli = parse(&["yawn", "delete", "feature-x", "-b", "-f"]);
+        match cli.command {
+            Command::Delete {
+                name,
+                branch,
+                force,
+            } => {
+                assert_eq!(name, "feature-x");
+                assert!(branch);
+                assert!(force);
+            }
             _ => panic!("expected Delete"),
         }
     }
