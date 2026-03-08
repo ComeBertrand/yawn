@@ -240,7 +240,7 @@ All fields are optional.
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `opener` | string | unset | Command template to open a terminal session. Placeholders: `{dir}` (absolute path), `{name}` (directory basename). When unset, uses `$TERMINAL`, or falls back to `Terminal.app` on macOS and `xterm` on Linux. |
+| `opener` | string | unset | Command template to open a terminal session. Placeholders: `{dir}` (absolute path), `{name}` (directory basename) — both are automatically shell-quoted. When unset, uses `$TERMINAL`, or falls back to `Terminal.app` on macOS and `xterm` on Linux. |
 | `finder` | string | unset | Default finder command for `yawn pick` (e.g. `fzf`, `rofi -dmenu -p project -i`). Can be overridden with `-F`. |
 
 ### `[worktree]`
@@ -258,7 +258,7 @@ max_depth = 3
 ignore = [".*", "node_modules", "target", "vendor"]
 
 [session]
-opener = "kitty --directory {dir} --title 'dev: {name}'"
+opener = "kitty --directory {dir} --title {name}"
 finder = "fzf"
 
 [worktree]
