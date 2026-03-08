@@ -140,6 +140,12 @@ pub fn worktree_remove(dir: &Path, target: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Delete a local branch with `git branch -d` (safe delete).
+pub fn delete_branch(dir: &Path, name: &str) -> Result<()> {
+    git(dir, &["branch", "-d", name])?;
+    Ok(())
+}
+
 /// List worktrees. Returns list of worktree paths.
 pub fn worktree_list(dir: &Path) -> Result<Vec<PathBuf>> {
     let output = git(dir, &["worktree", "list", "--porcelain"])?;

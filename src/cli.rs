@@ -83,6 +83,10 @@ pub enum Command {
     Delete {
         /// Worktree name to remove
         name: String,
+
+        /// Also delete the local branch (skip prompt)
+        #[arg(short, long)]
+        branch: bool,
     },
 
     /// Output completion candidates (hidden)
@@ -430,7 +434,31 @@ mod tests {
     fn test_delete() {
         let cli = parse(&["yawn", "delete", "feature-x"]);
         match cli.command {
-            Command::Delete { name } => assert_eq!(name, "feature-x"),
+            Command::Delete { name, branch } => {
+                assert_eq!(name, "feature-x");
+                assert!(!branch);
+            }
+            _ => panic!("expected Delete"),
+        }
+    }
+
+    #[test]
+    fn test_delete_with_branch() {
+        let cli = parse(&["yawn", "delete", "feature-x", "--branch"]);
+        match cli.command {
+            Command::Delete { name, branch } => {
+                assert_eq!(name, "feature-x");
+                assert!(branch);
+            }
+            _ => panic!("expected Delete"),
+        }
+    }
+
+    #[test]
+    fn test_delete_with_branch_short() {
+        let cli = parse(&["yawn", "delete", "feature-x", "-b"]);
+        match cli.command {
+            Command::Delete { branch, .. } => assert!(branch),
             _ => panic!("expected Delete"),
         }
     }

@@ -45,7 +45,7 @@ fn run() -> Result<()> {
             init,
         } => cmd_create(&name, source.as_deref(), open, init, &config),
         Command::Init {} => cmd_init(),
-        Command::Delete { name } => cmd_delete(&name, &config),
+        Command::Delete { name, branch } => cmd_delete(&name, branch, &config),
         Command::Complete { subcommand } => cmd_complete(&subcommand),
     }
 }
@@ -199,9 +199,9 @@ fn cmd_init() -> Result<()> {
     init::run(&cwd)
 }
 
-fn cmd_delete(name: &str, config: &config::Config) -> Result<()> {
+fn cmd_delete(name: &str, delete_branch: bool, config: &config::Config) -> Result<()> {
     let cwd = env::current_dir()?;
-    worktree::delete(name, config, &cwd)?;
+    worktree::delete(name, delete_branch, config, &cwd)?;
     println!("deleted worktree '{}'", name);
     Ok(())
 }

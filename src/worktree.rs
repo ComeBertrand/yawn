@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
 use std::fs;
+use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 
 use crate::config::Config;
@@ -56,7 +57,10 @@ pub fn create(name: &str, source: Option<&str>, config: &Config, cwd: &Path) -> 
 }
 
 /// Delete a worktree for the current project.
-pub fn delete(name: &str, config: &Config, cwd: &Path) -> Result<()> {
+///
+/// If `delete_branch` is true, the local branch is deleted without prompting.
+/// Otherwise, if a terminal is attached, the user is prompted.
+pub fn delete(name: &str, delete_branch: bool, config: &Config, cwd: &Path) -> Result<()> {
     let main_root = git::repo_root(cwd)
         .context("not inside a git repository — run this from within a project")?;
     let project_name = main_root
@@ -77,12 +81,35 @@ pub fn delete(name: &str, config: &Config, cwd: &Path) -> Result<()> {
         }
     }
 
-    // Check if the branch still exists locally
+    // Handle local branch cleanup
     if git::local_branch_exists(cwd, name)? {
-        eprintln!(
-            "note: local branch '{}' still exists. Remove it manually with: git branch -d {}",
-            name, name
-        );
+        let should_delete = if delete_branch {
+            true
+        } else if io::stderr().is_terminal() && io::stdin().is_terminal() {
+            eprint!("delete local branch '{}'? [y/N] ", name);
+            io::stderr().flush()?;
+            let mut answer = String::new();
+            io::stdin().lock().read_line(&mut answer)?;
+            matches!(answer.trim(), "y" | "Y" | "yes" | "YES")
+        } else {
+            eprintln!(
+                "note: local branch '{}' still exists — pass -b to delete it",
+                name
+            );
+            false
+        };
+
+        if should_delete {
+            if let Err(e) = git::delete_branch(cwd, name) {
+                eprintln!(
+                    "warning: could not delete branch '{}': {}\n\
+                     hint: if the branch is not fully merged, run: git branch -D {}",
+                    name, e, name
+                );
+            } else {
+                eprintln!("deleted branch '{}'", name);
+            }
+        }
     }
 
     Ok(())
@@ -208,7 +235,7 @@ mod tests {
         assert!(wt_path.exists());
 
         // Delete it
-        delete("feature-x", &config, &repo).unwrap();
+        delete("feature-x", false, &config, &repo).unwrap();
         assert!(!wt_path.exists());
     }
 
@@ -223,6 +250,26 @@ mod tests {
         let config = test_config(wt_root);
 
         // Should not error when worktree doesn't exist
-        delete("nonexistent", &config, &repo).unwrap();
+        delete("nonexistent", false, &config, &repo).unwrap();
+    }
+
+    #[test]
+    fn test_delete_with_branch_flag() {
+        let tmp = TempDir::new().unwrap();
+        let repo = tmp.path().join("myproject");
+        init_repo(&repo);
+
+        let wt_root = tmp.path().join("worktrees");
+        fs::create_dir_all(&wt_root).unwrap();
+        let config = test_config(wt_root.clone());
+
+        let wt_path = create("feature-x", None, &config, &repo).unwrap();
+        assert!(wt_path.exists());
+        assert!(git::local_branch_exists(&repo, "feature-x").unwrap());
+
+        // Delete with --branch flag
+        delete("feature-x", true, &config, &repo).unwrap();
+        assert!(!wt_path.exists());
+        assert!(!git::local_branch_exists(&repo, "feature-x").unwrap());
     }
 }

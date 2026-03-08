@@ -39,7 +39,7 @@ yawn resolve <pretty-name> [-P <path>]  Map a pretty name back to an absolute pa
 yawn pick [-F <finder>] [path]  Interactively pick a project and open it
 yawn open <path> [-c <command>] Open a terminal in the given directory
 yawn create <name> [--source <base>] [--open] [--init]  Create a git worktree
-yawn delete <name>              Remove a worktree
+yawn delete <name> [--branch]   Remove a worktree
 yawn init                       Initialize the current directory
 ```
 
@@ -172,8 +172,11 @@ yawn create feature-x --init
 # All flags combine
 yawn create feature-x --source develop --init --open
 
-# Delete a worktree
+# Delete a worktree (prompts to delete the local branch)
 yawn delete feature-x
+
+# Delete a worktree and its local branch without prompting
+yawn delete feature-x --branch
 ```
 
 ### Initializing a project
