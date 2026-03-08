@@ -81,7 +81,11 @@ pub fn delete(
         .worktree_root
         .join(format!("{}--{}", project_name, name));
 
-    if target.exists() {
+    if !target.exists() {
+        bail!("worktree '{}' does not exist", name);
+    }
+
+    {
         match git::worktree_remove(cwd, &target) {
             Ok(()) => {}
             Err(_) if force => {
@@ -271,8 +275,9 @@ mod tests {
         fs::create_dir_all(&wt_root).unwrap();
         let config = test_config(wt_root);
 
-        // Should not error when worktree doesn't exist
-        delete("nonexistent", false, false, &config, &repo).unwrap();
+        let result = delete("nonexistent", false, false, &config, &repo);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("does not exist"));
     }
 
     #[test]
