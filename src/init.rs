@@ -53,12 +53,34 @@ fn expand_pattern(base: &Path, pattern: &str) -> Vec<PathBuf> {
         collect_files(base, base, &glob).unwrap_or_default()
     } else {
         let path = base.join(pattern);
-        if path.exists() {
+        if path.is_dir() {
+            collect_dir_files(base, &path).unwrap_or_default()
+        } else if path.exists() {
             vec![PathBuf::from(pattern)]
         } else {
             Vec::new()
         }
     }
+}
+
+/// Recursively collect all files under `dir`, returning paths relative to `base`.
+fn collect_dir_files(base: &Path, dir: &Path) -> Result<Vec<PathBuf>> {
+    let mut results = Vec::new();
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(_) => return Ok(results),
+    };
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            results.extend(collect_dir_files(base, &path)?);
+        } else {
+            let rel = path.strip_prefix(base).unwrap_or(&path);
+            results.push(rel.to_path_buf());
+        }
+    }
+    Ok(results)
 }
 
 /// Recursively collect files under `dir` that match `glob`, returning paths relative to `base`.
@@ -311,6 +333,30 @@ mod tests {
         assert!(target.join("config/dev.toml").exists());
         assert!(target.join("config/test.toml").exists());
         assert!(!target.join("config/keep.json").exists());
+    }
+
+    #[test]
+    fn test_copy_include_directory() {
+        let tmp = TempDir::new().unwrap();
+        let source = tmp.path().join("source");
+        let target = tmp.path().join("target");
+        fs::create_dir_all(&source).unwrap();
+        fs::create_dir_all(&target).unwrap();
+
+        fs::create_dir_all(source.join(".cache/sub")).unwrap();
+        fs::write(source.join(".cache/a.txt"), "aaa").unwrap();
+        fs::write(source.join(".cache/sub/b.txt"), "bbb").unwrap();
+
+        copy_include_files(&source, &target, &[".cache".into()]).unwrap();
+
+        assert_eq!(
+            fs::read_to_string(target.join(".cache/a.txt")).unwrap(),
+            "aaa"
+        );
+        assert_eq!(
+            fs::read_to_string(target.join(".cache/sub/b.txt")).unwrap(),
+            "bbb"
+        );
     }
 
     #[test]

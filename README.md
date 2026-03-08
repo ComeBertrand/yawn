@@ -186,7 +186,7 @@ include = [".env", ".env.local", "config/*.toml"]
 commands = ["npm install", "cargo build"]
 ```
 
-- **`include`** — files and glob patterns to copy from the main repo into worktrees. Useful for local config files (`.env`, etc.) that aren't tracked by git.
+- **`include`** — files, directories, and glob patterns to copy from the main repo into worktrees. Directories are copied recursively. Useful for local config files (`.env`, etc.) that aren't tracked by git.
 - **`commands`** — shell commands to run sequentially in the target directory. Stops on first failure.
 
 When run in a worktree, `yawn init` copies include files from the main repo and then runs commands. When run in the main repo itself (e.g. after a fresh clone), it skips the copy step and only runs commands.
@@ -210,7 +210,7 @@ There are two config files:
 
 | Key | Type | Description |
 |---|---|---|
-| `init.include` | list of strings | Files/glob patterns to copy from the main repo into worktrees. |
+| `init.include` | list of strings | Files, directories, or glob patterns to copy from the main repo into worktrees. Directories are copied recursively. |
 | `init.commands` | list of strings | Shell commands to run sequentially during init. |
 
 ```toml
