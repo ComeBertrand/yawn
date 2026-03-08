@@ -54,6 +54,25 @@ fn run() -> Result<()> {
     }
 }
 
+/// Resolve project paths from an optional path argument.
+///
+/// With an explicit path, discovers projects under it. Without one, if inside
+/// a git repo, lists its worktrees; otherwise discovers projects under cwd.
+fn resolve_paths(path: Option<PathBuf>, config: &config::Config) -> Result<Vec<PathBuf>> {
+    if let Some(root) = path {
+        let ignore_set = discovery::build_ignore_set(&config.ignore)?;
+        discovery::discover(&root, &ignore_set, config.max_depth)
+    } else {
+        let cwd = env::current_dir()?;
+        if git::repo_root(&cwd).is_ok() {
+            git::worktree_list(&cwd)
+        } else {
+            let ignore_set = discovery::build_ignore_set(&config.ignore)?;
+            discovery::discover(&cwd, &ignore_set, config.max_depth)
+        }
+    }
+}
+
 fn cmd_list(
     path: Option<PathBuf>,
     json: bool,
@@ -61,21 +80,7 @@ fn cmd_list(
     porcelain: bool,
     config: &config::Config,
 ) -> Result<()> {
-    let paths = if let Some(root) = path {
-        // Explicit path: always discover
-        let ignore_set = discovery::build_ignore_set(&config.ignore)?;
-        discovery::discover(&root, &ignore_set, config.max_depth)?
-    } else {
-        let cwd = env::current_dir()?;
-        if git::repo_root(&cwd).is_ok() {
-            // Inside a git repo: list its worktrees
-            git::worktree_list(&cwd)?
-        } else {
-            // Not in a git repo: discover projects under cwd
-            let ignore_set = discovery::build_ignore_set(&config.ignore)?;
-            discovery::discover(&cwd, &ignore_set, config.max_depth)?
-        }
-    };
+    let paths = resolve_paths(path, config)?;
 
     if json {
         let entries = pretty::build_pretty_names(&paths);
@@ -125,13 +130,11 @@ fn cmd_pick(path: Option<PathBuf>, finder: Option<&str>, config: &config::Config
     let finder = finder.or(config.finder.as_deref()).ok_or_else(|| {
         anyhow::anyhow!("no finder configured: use -F or set session.finder in config")
     })?;
-    let root = path.unwrap_or(env::current_dir()?);
-    let ignore_set = discovery::build_ignore_set(&config.ignore)?;
-    let paths = discovery::discover(&root, &ignore_set, config.max_depth)?;
+    let paths = resolve_paths(path, config)?;
     let entries = pretty::build_pretty_names(&paths);
 
     if entries.is_empty() {
-        bail!("no projects found under {}", root.display());
+        bail!("no projects found");
     }
 
     let input: String = entries
