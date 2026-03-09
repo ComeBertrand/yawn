@@ -6,6 +6,8 @@
 
 A fast project switcher and worktree manager for git. Fuzzy-find any project on your machine and open it: terminal, IDE, whatever you want. Also makes git worktrees painless.
 
+![yawn pick with rofi opening VS Code](demo.gif)
+
 ## Features
 
 - **Fuzzy-find and open** projects with any finder (fzf, rofi, dmenu...)
