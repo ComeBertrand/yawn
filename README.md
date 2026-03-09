@@ -1,10 +1,136 @@
-# yawn — Yet Another Worktree Navigator
+# yawn - Yet Another Worktree Navigator
 
 [![CI](https://github.com/ComeBertrand/yawn/actions/workflows/ci.yml/badge.svg)](https://github.com/ComeBertrand/yawn/actions/workflows/ci.yml)
 [![crates.io](https://img.shields.io/crates/v/git-yawn.svg)](https://crates.io/crates/git-yawn)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A fast project switcher and worktree manager for git.
+A fast project switcher and worktree manager for git. Fuzzy-find any project on your machine and open it: terminal, IDE, whatever you want. Also makes git worktrees painless.
+
+## Features
+
+- **Fuzzy-find and open** projects with any finder (fzf, rofi, dmenu...)
+- **Create worktrees** with automatic branch resolution and one-step setup
+- **Auto-initialize** worktrees: copy `.env`, run `npm install`, etc.
+- **Discover** all git repos recursively, displayed as a tree with worktrees grouped under their parent
+- **Bind to a WM hotkey**, works great with i3/sway/hyprland
+- JSON/porcelain output for scripting
+
+## Quick start
+
+```bash
+cargo install git-yawn
+yawn pick -F fzf ~/projects
+```
+
+## Project picker
+
+`yawn pick` discovers projects, pipes them into a fuzzy finder, resolves the selection, and opens it. One command.
+
+```bash
+yawn pick -F fzf ~/projects
+yawn pick -F "rofi -dmenu -p project -i" ~
+```
+
+Bind it to a hotkey in your window manager:
+
+```bash
+# sway / i3
+bindsym $mod+p exec yawn pick -F "rofi -dmenu -p project -i" ~/projects
+```
+
+You can also set a default finder in your config and just run `yawn pick`.
+
+Under the hood, `yawn pick` is equivalent to:
+
+```bash
+yawn open "$(yawn resolve -P ~ "$(yawn list ~ --porcelain | fzf)")"
+```
+
+## Worktree management
+
+```bash
+# The manual way:
+git worktree add ~/worktrees/my-app--feature-x -b feature-x origin/main
+cd ~/worktrees/my-app--feature-x
+cp ../my-app/.env .
+npm install
+
+# With yawn:
+yawn create feature-x --init --open
+```
+
+Worktrees are created under a configurable root directory (default: `~/worktrees`) using the convention `<project>--<name>`.
+
+```bash
+yawn create feature-x                           # new branch from default branch
+yawn create feature-x --source develop           # branch from a specific base
+yawn create feature-x --init --open              # setup + open
+
+yawn delete feature-x                            # remove (prompts for branch deletion)
+yawn delete feature-x --branch --force           # remove worktree + branch, no prompts
+```
+
+Branch resolution: checks out existing local branches, tracks remote branches, or creates a new branch from `--source` or the default branch.
+
+### Per-project setup with `.yawn.toml`
+
+Place a `.yawn.toml` at the repo root to configure what happens during `yawn init` or `yawn create --init`:
+
+```toml
+[init]
+include = [".env", ".env.local", "config/*.toml"]
+commands = ["npm install", "cargo build"]
+```
+
+- **`include`**: files, directories, or glob patterns to copy from the main repo into worktrees. Directories are copied recursively.
+- **`commands`**: shell commands to run sequentially in the target directory. Stops on first failure.
+
+## Project discovery
+
+`yawn list` recursively finds git projects. In a terminal, they're shown as a colored tree:
+
+```
+my-app
+├─ fix-branch
+└─ feature-x
+dotfiles
+notes (personal)
+notes (work)
+```
+
+When piped, output falls back to flat names compatible with fzf and other tools. Use `--raw` for absolute paths or `--json` for structured output.
+
+```bash
+yawn list ~/projects                # tree in terminal, flat when piped
+yawn list --porcelain                # flat pretty names (stable for scripts)
+yawn list --raw                      # absolute paths
+yawn list --json                     # structured JSON
+```
+
+## Configuration
+
+Global config lives at `~/.config/yawn/config.toml`. All fields are optional.
+
+```toml
+[discovery]
+max_depth = 3
+ignore = [".*", "node_modules", "target", "vendor"]
+
+[session]
+opener = "code {dir}"
+finder = "fzf"
+
+[worktree]
+root = "~/worktrees"
+auto_init = false
+```
+
+- **`discovery.max_depth`**: recursion depth when searching for projects (default: `5`)
+- **`discovery.ignore`**: directory name patterns to skip (default: `[".*", "node_modules"]`)
+- **`session.opener`**: command template to open a project. `{dir}` and `{name}` are shell-quoted automatically. Examples: `code {dir}`, `kitty --directory {dir}`. Falls back to `$TERMINAL`, then `Terminal.app` (macOS) or `xterm` (Linux).
+- **`session.finder`**: default finder for `yawn pick` (overridden by `-F`)
+- **`worktree.root`**: where worktrees are created (default: `~/worktrees`)
+- **`worktree.auto_init`**: always run init after creating a worktree (default: `false`)
 
 ## Install
 
@@ -12,6 +138,14 @@ A fast project switcher and worktree manager for git.
 
 ```bash
 cargo install git-yawn
+```
+
+### GitHub Releases
+
+Download a binary from the [releases page](https://github.com/ComeBertrand/yawn/releases), or use the shell installer:
+
+```bash
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/ComeBertrand/yawn/releases/latest/download/yawn-installer.sh | sh
 ```
 
 ### Nix flake
@@ -23,273 +157,22 @@ inputs.yawn.url = "github:ComeBertrand/yawn";
 inputs.yawn.packages.${system}.default
 ```
 
-### GitHub Releases
+## Shell completion & man page
 
-Download a binary from the [releases page](https://github.com/ComeBertrand/yawn/releases), or use the shell installer:
-
-```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/ComeBertrand/yawn/releases/latest/download/yawn-installer.sh | sh
-```
-
-## Usage
-
-```
-yawn list [path] [--json] [--raw] [--porcelain]  Discover git projects
-yawn resolve <pretty-name> [-P <path>]  Map a pretty name back to an absolute path
-yawn pick [-F <finder>] [path]  Interactively pick a project and open it
-yawn open <path> [-c <command>] Open a terminal in the given directory
-yawn create <name> [--source <base>] [--open] [--init]  Create a git worktree
-yawn delete <name> [--branch] [--force]  Remove a worktree
-yawn init                       Initialize the current directory
-```
-
-### Listing projects
-
-Recursively discovers git projects under a directory. Takes an optional path, defaults to the current directory.
+Shell completions are included:
 
 ```bash
-yawn list ~/projects           # pretty output (tree in terminal, flat when piped)
-yawn list                      # discover projects under cwd
-yawn list --porcelain          # force flat pretty names (stable for scripts)
-yawn list --raw                # absolute paths, one per line
-yawn list --json               # structured JSON output
-```
-
-By default, the output is human-friendly. In a terminal, projects are shown as a colored tree with worktrees grouped under their parent:
-
-```
-my-app
-├─ fix-branch
-└─ feature-x
-dotfiles
-notes (personal)
-notes (work)
-```
-
-When piped (or with `--porcelain`), it falls back to flat pretty names for compatibility with tools like `fzf`:
-
-```
-my-app
-fix-branch @my-app
-feature-x @my-app
-dotfiles
-notes (personal)
-notes (work)
-```
-
-The `--raw` flag outputs absolute paths, one per line:
-
-```
-/home/user/projects/my-app
-/home/user/worktrees/my-app--fix-branch
-/home/user/worktrees/my-app--feature-x
-/home/user/projects/dotfiles
-```
-
-The `--json` flag outputs an array of objects with `path`, `name`, `is_worktree`, and `worktree_of` fields:
-
-```bash
-yawn list ~/projects --json
-# [
-#   { "path": "/home/user/projects/myapp", "name": "myapp", "is_worktree": false, "worktree_of": null },
-#   { "path": "/home/user/projects/myapp--feature", "name": "feature @myapp", "is_worktree": true, "worktree_of": "myapp" }
-# ]
-```
-
-If run inside a git repo (without a path), it lists the repo itself and its worktrees:
-
-```bash
-cd ~/projects/my-app
-yawn list
-```
-
-```
-/home/user/projects/my-app
-/home/user/worktrees/my-app--fix-branch
-/home/user/worktrees/my-app--feature-x
-```
-
-### Interactive project switcher
-
-Use `yawn pick` with any fuzzy finder:
-
-```bash
-# fzf
-yawn pick -F fzf ~/projects
-
-# rofi
-yawn pick -F "rofi -dmenu -p project -i" ~
-
-# from current directory
-yawn pick -F fzf
-```
-
-This discovers projects, pipes pretty names into the finder, resolves the selection, and opens a terminal — all in one command. Easy to bind in i3/sway/hyprland.
-
-The equivalent manual pipeline still works:
-
-```bash
-yawn open "$(yawn resolve -P ~ "$(yawn list ~ --pretty | fzf)")"
-
-# override the configured open command for a single invocation
-yawn open /path/to/project -c "code {dir}"
-```
-
-### Worktrees
-
-Worktrees are created under a configurable root directory (default: `~/worktrees`) using the naming convention `<project>--<name>`. For example, running `yawn create feature-x` from inside a repo called `my-app` creates:
-
-```
-~/worktrees/my-app--feature-x
-```
-
-When listing with `--pretty`, the `<project>--` prefix is stripped and the worktree is annotated:
-
-```
-feature-x @my-app
-```
-
-Branch resolution when creating a worktree follows this order:
-
-1. If `<name>` exists as a local branch, check it out.
-2. If `<name>` exists as `origin/<name>`, track it.
-3. If `--source <base>` is provided, create a new branch from `<base>`.
-4. Otherwise, create a new branch from the default branch (`origin/HEAD`, falling back to `main` then `master`).
-
-```bash
-# Create a worktree (new branch from default branch)
-yawn create feature-x
-
-# Create from a specific base branch
-yawn create feature-x --source develop
-
-# Create and immediately open a terminal in it
-yawn create feature-x --open
-
-# Create and run init (copy files + setup commands)
-yawn create feature-x --init
-
-# All flags combine
-yawn create feature-x --source develop --init --open
-
-# Delete a worktree (prompts to delete the local branch)
-yawn delete feature-x
-
-# Delete a worktree and its local branch without prompting
-yawn delete feature-x --branch
-
-# Force-delete a worktree with uncommitted changes
-yawn delete feature-x --force
-```
-
-### Initializing a project
-
-`yawn init` sets up the current directory by copying files from the main repo and running setup commands. Configuration lives in `.yawn.toml` at the repo root:
-
-```toml
-[init]
-include = [".env", ".env.local", "config/*.toml"]
-commands = ["npm install", "cargo build"]
-```
-
-- **`include`** — files, directories, and glob patterns to copy from the main repo into worktrees. Directories are copied recursively. Useful for local config files (`.env`, etc.) that aren't tracked by git.
-- **`commands`** — shell commands to run sequentially in the target directory. Stops on first failure.
-
-When run in a worktree, `yawn init` copies include files from the main repo and then runs commands. When run in the main repo itself (e.g. after a fresh clone), it skips the copy step and only runs commands.
-
-```bash
-# Initialize the current directory
-yawn init
-
-# Create a worktree and initialize it in one step
-yawn create feature-x --init
-```
-
-## Configuration
-
-There are two config files:
-
-- **`~/.config/yawn/config.toml`** — global user config (discovery, session, worktree settings)
-- **`.yawn.toml`** — per-project config, lives in the repo root and should be committed to git (init settings)
-
-### `.yawn.toml` (per-project)
-
-| Key | Type | Description |
-|---|---|---|
-| `init.include` | list of strings | Files, directories, or glob patterns to copy from the main repo into worktrees. Directories are copied recursively. |
-| `init.commands` | list of strings | Shell commands to run sequentially during init. |
-
-```toml
-[init]
-include = [".env", ".env.local", "config/*.toml"]
-commands = ["npm install"]
-```
-
-### `~/.config/yawn/config.toml` (global)
-
-All fields are optional.
-
-### `[discovery]`
-
-| Key | Type | Default | Description |
-|---|---|---|---|
-| `max_depth` | integer | `5` | Maximum recursion depth when searching for git projects. |
-| `ignore` | list of strings | `[".*", "node_modules"]` | Glob patterns matched against directory names. Matching directories are skipped during discovery. Hidden directories (except `.git` itself) are ignored by default. |
-
-### `[session]`
-
-| Key | Type | Default | Description |
-|---|---|---|---|
-| `opener` | string | unset | Command template to open a terminal session. Placeholders: `{dir}` (absolute path), `{name}` (directory basename) — both are automatically shell-quoted. When unset, uses `$TERMINAL`, or falls back to `Terminal.app` on macOS and `xterm` on Linux. |
-| `finder` | string | unset | Default finder command for `yawn pick` (e.g. `fzf`, `rofi -dmenu -p project -i`). Can be overridden with `-F`. |
-
-### `[worktree]`
-
-| Key | Type | Default | Description |
-|---|---|---|---|
-| `root` | string | `~/worktrees` | Directory where worktrees are created. Supports `~` expansion. |
-| `auto_init` | boolean | `false` | Automatically run init after creating a worktree (equivalent to always passing `--init`). |
-
-### Example
-
-```toml
-[discovery]
-max_depth = 3
-ignore = [".*", "node_modules", "target", "vendor"]
-
-[session]
-opener = "kitty --directory {dir} --title {name}"
-finder = "fzf"
-
-[worktree]
-root = "~/worktrees"
-```
-
-## Shell Completion
-
-### Bash
-
-```bash
+# Bash
 cp completions/yawn.bash ~/.local/share/bash-completion/completions/yawn
-```
 
-### Zsh
-
-```bash
+# Zsh (or place it anywhere in your $fpath)
 cp completions/yawn.zsh ~/.local/share/zsh/site-functions/_yawn
-```
 
-Or place it anywhere in your `$fpath`.
-
-### Fish
-
-```bash
+# Fish
 cp completions/yawn.fish ~/.config/fish/completions/yawn.fish
 ```
 
-## Man Page
-
-A man page is generated at build time. After building from source:
+A man page is generated at build time:
 
 ```bash
 man target/*/build/git-yawn-*/out/man/yawn.1
