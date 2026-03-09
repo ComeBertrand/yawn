@@ -63,11 +63,11 @@ Worktrees are created under a configurable root directory (default: `~/worktrees
 
 ```bash
 yawn create feature-x                           # new branch from default branch
-yawn create feature-x --source develop           # branch from a specific base
-yawn create feature-x --init --open              # setup + open
+yawn create feature-x --source develop          # branch from a specific base
+yawn create feature-x --init --open             # setup + open
 
-yawn delete feature-x                            # remove (prompts for branch deletion)
-yawn delete feature-x --branch --force           # remove worktree + branch, no prompts
+yawn delete feature-x                           # remove (prompts for branch deletion)
+yawn delete feature-x --branch --force          # remove worktree + branch, no prompts
 ```
 
 Branch resolution: checks out existing local branches, tracks remote branches, or creates a new branch from `--source` or the default branch.
@@ -102,9 +102,9 @@ When piped, output falls back to flat names compatible with fzf and other tools.
 
 ```bash
 yawn list ~/projects                # tree in terminal, flat when piped
-yawn list --porcelain                # flat pretty names (stable for scripts)
-yawn list --raw                      # absolute paths
-yawn list --json                     # structured JSON
+yawn list --porcelain               # flat pretty names (stable for scripts)
+yawn list --raw                     # absolute paths
+yawn list --json                    # structured JSON
 ```
 
 ## Configuration
