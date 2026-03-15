@@ -36,6 +36,7 @@ fn run() -> Result<()> {
             porcelain,
         } => cmd_list(path, json, raw, porcelain, &config),
         Command::Resolve { name, path } => cmd_resolve(&name, path, &config),
+        Command::Prettify { dir, path } => cmd_prettify(&dir, path, &config),
         Command::Pick { path, finder } => cmd_pick(path, finder.as_deref(), &config),
         Command::Open { path, command } => cmd_open(&path, command.as_deref(), &config),
         Command::Create {
@@ -123,6 +124,19 @@ fn cmd_resolve(name: &str, path: Option<PathBuf>, config: &config::Config) -> Re
     let paths = discovery::discover(&root, &ignore_set, config.max_depth)?;
     let resolved = pretty::resolve(name, &paths)?;
     println!("{}", resolved.display());
+    Ok(())
+}
+
+fn cmd_prettify(
+    dir: &std::path::Path,
+    path: Option<PathBuf>,
+    config: &config::Config,
+) -> Result<()> {
+    let root = path.unwrap_or(env::current_dir()?);
+    let ignore_set = discovery::build_ignore_set(&config.ignore)?;
+    let paths = discovery::discover(&root, &ignore_set, config.max_depth)?;
+    let name = pretty::prettify(dir, &paths)?;
+    println!("{}", name);
     Ok(())
 }
 

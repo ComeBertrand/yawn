@@ -38,6 +38,16 @@ pub enum Command {
         path: Option<PathBuf>,
     },
 
+    /// Map a directory path to its pretty display name
+    Prettify {
+        /// Absolute path to the project directory
+        dir: PathBuf,
+
+        /// Directory to search (must match the path used with list)
+        #[arg(short = 'P', long)]
+        path: Option<PathBuf>,
+    },
+
     /// Open a terminal in the given directory
     Open {
         /// Absolute path to the directory
@@ -201,6 +211,30 @@ mod tests {
                 assert!(porcelain);
             }
             _ => panic!("expected List"),
+        }
+    }
+
+    #[test]
+    fn test_prettify() {
+        let cli = parse(&["yawn", "prettify", "/home/user/project"]);
+        match cli.command {
+            Command::Prettify { dir, path } => {
+                assert_eq!(dir, PathBuf::from("/home/user/project"));
+                assert!(path.is_none());
+            }
+            _ => panic!("expected Prettify"),
+        }
+    }
+
+    #[test]
+    fn test_prettify_with_path() {
+        let cli = parse(&["yawn", "prettify", "/home/user/project", "-P", "/home/user"]);
+        match cli.command {
+            Command::Prettify { dir, path } => {
+                assert_eq!(dir, PathBuf::from("/home/user/project"));
+                assert_eq!(path.unwrap(), PathBuf::from("/home/user"));
+            }
+            _ => panic!("expected Prettify"),
         }
     }
 

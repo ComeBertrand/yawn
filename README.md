@@ -48,6 +48,15 @@ Under the hood, `yawn pick` is equivalent to:
 yawn open "$(yawn resolve -P ~ "$(yawn list ~ --porcelain | fzf)")"
 ```
 
+## Name resolution
+
+`yawn resolve` maps a pretty display name back to an absolute path. `yawn prettify` does the inverse — maps an absolute path to its pretty name:
+
+```bash
+yawn resolve "feature @myapp" -P ~/projects    # → /home/user/worktrees/myapp--feature
+yawn prettify /home/user/worktrees/myapp--feature -P ~/projects   # → feature @myapp
+```
+
 ## Worktree management
 
 ```bash

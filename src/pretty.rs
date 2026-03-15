@@ -252,6 +252,23 @@ pub fn build_tree_output(entries: &[PrettyEntry]) -> Vec<String> {
     lines
 }
 
+/// Map an absolute path to its pretty display name.
+///
+/// Builds the same pretty names and finds the matching entry.
+/// Errors if the path is not in the list.
+pub fn prettify(path: &Path, paths: &[PathBuf]) -> Result<String> {
+    let canonical = fs::canonicalize(path)?;
+    let entries = build_pretty_names(paths);
+    for entry in &entries {
+        if let Ok(entry_canonical) = fs::canonicalize(&entry.path) {
+            if entry_canonical == canonical {
+                return Ok(entry.display_name.clone());
+            }
+        }
+    }
+    bail!("no project matches path '{}'", path.display())
+}
+
 /// Resolve a pretty name to an absolute path.
 ///
 /// Builds the same pretty names and finds the matching entry.
@@ -447,6 +464,59 @@ mod tests {
             "expected disambiguation, got: {}",
             wt_entry.display_name
         );
+    }
+
+    #[test]
+    fn test_prettify_simple() {
+        let tmp = TempDir::new().unwrap();
+        let repo_a = tmp.path().join("alpha");
+        let repo_b = tmp.path().join("beta");
+        make_git_repo(&repo_a);
+        make_git_repo(&repo_b);
+
+        let paths = vec![repo_a.clone(), repo_b];
+        let result = prettify(&repo_a, &paths).unwrap();
+        assert_eq!(result, "alpha");
+    }
+
+    #[test]
+    fn test_prettify_worktree() {
+        let tmp = TempDir::new().unwrap();
+        let main_repo = tmp.path().join("myapp");
+        make_git_repo(&main_repo);
+        let wt = tmp.path().join("myapp--feature");
+        make_git_worktree(&wt, &main_repo);
+
+        let paths = vec![main_repo, wt.clone()];
+        let result = prettify(&wt, &paths).unwrap();
+        assert_eq!(result, "feature @myapp");
+    }
+
+    #[test]
+    fn test_prettify_no_match() {
+        let tmp = TempDir::new().unwrap();
+        let repo = tmp.path().join("alpha");
+        let other = tmp.path().join("nonexistent");
+        make_git_repo(&repo);
+        fs::create_dir_all(&other).unwrap();
+
+        let paths = vec![repo];
+        let result = prettify(&other, &paths);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_prettify_roundtrip() {
+        let tmp = TempDir::new().unwrap();
+        let repo_a = tmp.path().join("alpha");
+        let repo_b = tmp.path().join("beta");
+        make_git_repo(&repo_a);
+        make_git_repo(&repo_b);
+
+        let paths = vec![repo_a.clone(), repo_b];
+        let name = prettify(&repo_a, &paths).unwrap();
+        let resolved = resolve(&name, &paths).unwrap();
+        assert_eq!(resolved, repo_a);
     }
 
     #[test]
