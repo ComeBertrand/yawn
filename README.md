@@ -76,6 +76,7 @@ Worktrees are created under a configurable root directory (default: `~/worktrees
 yawn create feature-x                           # new branch from default branch
 yawn create feature-x --source develop          # branch from a specific base
 yawn create feature-x --init --open             # setup + open
+cd "$(yawn create feature-x)"                   # create and cd into the worktree
 
 yawn delete feature-x                           # remove (prompts for branch deletion)
 yawn delete feature-x --branch --force          # remove worktree + branch, no prompts

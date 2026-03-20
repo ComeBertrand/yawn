@@ -202,7 +202,8 @@ fn cmd_create(
 ) -> Result<()> {
     let cwd = env::current_dir()?;
     let wt_path = worktree::create(name, source, config, &cwd)?;
-    println!("created worktree at {}", wt_path.display());
+    eprintln!("created worktree at {}", wt_path.display());
+    println!("{}", wt_path.display());
 
     if run_init || config.auto_init {
         init::run(&wt_path)?;
